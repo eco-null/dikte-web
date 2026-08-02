@@ -47,6 +47,7 @@ Any of these can be selected in Settings as the transcription provider:
 | OpenAI | `https://api.openai.com/v1` | `gpt-4o-transcribe` |
 | Groq | `https://api.groq.com/openai/v1` | `whisper-large-v3-turbo` |
 | OpenRouter | `https://openrouter.ai/api/v1` | `openai/gpt-4o-transcribe` |
+| Local (whisper.cpp) | none (runs on this machine) | whisper `.bin` model (installed via Settings → Models) |
 
 The assistant (agent) supports **OpenRouter** (cloud) and **OmniRoute** (a
 local, OpenAI-compatible endpoint), the latter intended for machines on your
@@ -148,6 +149,18 @@ dikte/
   names, participants list.
 - **Assistant** — provider (OpenRouter/OmniRoute), model per provider, base
   URL, session length in minutes, timeout.
+
+### Local models
+
+- **Settings → Models** — install the `whisper.cpp` / `llama.cpp` binaries and
+  model files (whisper `.bin` models, GGUF quant files) directly from the web
+  UI.
+- **Transcription** — set `transcribe_provider` to `local` to transcribe with
+  whisper.cpp on this machine (no API key).
+- **Cleanup** — set `cleanup_provider` to `local-llm` to clean up transcripts
+  with llama.cpp locally.
+- **Data paths** — binaries at `/data/share/dikte/bin`, models at
+  `/data/share/dikte/models` (under the `dikte_data` volume in Docker).
 
 ---
 

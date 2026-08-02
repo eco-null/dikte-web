@@ -47,6 +47,7 @@ Ayarlar'dan şunlardan biri transkripsiyon sağlayıcısı olarak seçilebilir:
 | OpenAI | `https://api.openai.com/v1` | `gpt-4o-transcribe` |
 | Groq | `https://api.groq.com/openai/v1` | `whisper-large-v3-turbo` |
 | OpenRouter | `https://openrouter.ai/api/v1` | `openai/gpt-4o-transcribe` |
+| Local (whisper.cpp) | none (bu makinede çalışır) | whisper `.bin` modeli (Ayarlar → Modeller'den kurulur) |
 
 Ajan **OpenRouter** (bulut) ve **OmniRoute**'u (yerel, OpenAI-uyumlu bir uç)
 destekler; ikincisi kendi ağındaki makineler, örn. yerel bir LLM sunucusu için
@@ -149,6 +150,18 @@ dikte/
   adları, katılımcı listesi.
 - **Ajan** — sağlayıcı (OpenRouter/OmniRoute), sağlayıcıya özel model, taban
   URL, oturum süresi (dakika), zaman aşımı.
+
+### Yerel modeller
+
+- **Ayarlar → Modeller** — `whisper.cpp` / `llama.cpp` ikili dosyalarını ve
+  model dosyalarını (whisper `.bin` modelleri, GGUF quant dosyaları) doğrudan
+  web arayüzünden kur.
+- **Transkripsiyon** — bu makinede whisper.cpp ile yazıya çevirmek için
+  `transcribe_provider` değerini `local` yap (API anahtarı gerekmez).
+- **Temizleme** — transkriptleri llama.cpp ile yerel olarak temizlemek için
+  `cleanup_provider` değerini `local-llm` yap.
+- **Veri yolları** — ikili dosyalar `/data/share/dikte/bin`, modeller
+  `/data/share/dikte/models` (Docker'da `dikte_data` biriminde).
 
 ---
 
