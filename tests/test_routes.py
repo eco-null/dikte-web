@@ -71,6 +71,31 @@ class Dictation(RouteTest):
         self.assertEqual(resp.status_code, 409)
         self.wait_job(job_id)
 
+    def test_busy_upload_cleans_up_the_temp_file(self):
+        import app.routes.api as api_routes
+        path = self.path("leak-check.bin")
+        path.write_bytes(b"x")
+        saved = {}
+
+        def fake_save(upload):
+            saved["path"] = str(path)
+            return str(path)
+
+        with mock.patch.object(api_routes, "_save_upload", side_effect=fake_save):
+            held = {}
+
+            def slow(emit):
+                held["go"] = True
+                time.sleep(0.3)
+                return {"text": "x"}
+
+            first = jobs.submit("dictation", slow)
+            resp = self.client.post(
+                "/api/dictate", files={"audio": ("a.webm", b"x", "audio/webm")})
+            self.assertEqual(resp.status_code, 409)
+            self.wait_job(first)
+        self.assertFalse(path.exists(), "busy path leaked the temp upload")
+
     def test_unauthenticated_api_is_401(self):
         self.client.cookies.clear()
         resp = self.client.get("/api/history")

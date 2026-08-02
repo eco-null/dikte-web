@@ -42,10 +42,19 @@ def _save_upload(upload: UploadFile) -> str:
     return path
 
 
-def _start(request, kind, work):
+def _unlink(path):
+    try:
+        os.unlink(path)
+    except OSError:
+        pass
+
+
+def _start(request, kind, work, cleanup=None):
     try:
         job_id = jobs.submit(kind, work)
     except jobs.BusyError:
+        if cleanup:
+            cleanup()
         raise HTTPException(409, detail="A job is already running.")
     return {"job_id": job_id}
 
@@ -78,7 +87,7 @@ async def dictate(request: Request, audio: UploadFile = File(...)):
             if os.path.exists(path):
                 os.unlink(path)
 
-    return _start(request, "dictation", work)
+    return _start(request, "dictation", work, cleanup=lambda: _unlink(path))
 
 
 @router.post("/api/files/transcribe")
@@ -102,7 +111,7 @@ async def transcribe_file(request: Request, file: UploadFile = File(...),
             if os.path.exists(path):
                 os.unlink(path)
 
-    return _start(request, "file", work)
+    return _start(request, "file", work, cleanup=lambda: _unlink(path))
 
 
 @router.get("/api/jobs/{job_id}/download")
@@ -160,7 +169,7 @@ async def create_meeting(request: Request, file: UploadFile = File(...),
             if os.path.exists(path):
                 os.unlink(path)
 
-    return _start(request, "meeting", work)
+    return _start(request, "meeting", work, cleanup=lambda: _unlink(path))
 
 
 @router.get("/api/meetings/{base}")
