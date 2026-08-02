@@ -75,5 +75,23 @@ class OpenRouter(DikteTest):
         self.assertTrue(issubclass(cleanup.CleanupError, api.ApiError))
 
 
+class LocalLLM(DikteTest):
+    def test_provider_accepts_local_llm(self):
+        conf = self.config(cleanup_provider="local-llm")
+        self.assertEqual(cleanup.provider(conf), "local-llm")
+
+    def test_run_uses_the_local_server_when_configured(self):
+        from unittest import mock
+        conf = self.config(cleanup_provider="local-llm",
+                           local_llm_model="gemma-3-4b-it.gguf")
+        with mock.patch("api.serving", return_value="http://127.0.0.1:7777/v1") as svc, \
+                mock.patch("api.cleanup", return_value="temiz metin") as cl:
+            out = cleanup.run("raw metin", conf, "sysprompt")
+        self.assertEqual(out, "temiz metin")
+        _, kwargs = cl.call_args
+        self.assertEqual(kwargs["provider"], "local-llm")
+        self.assertIn("127.0.0.1:7777", kwargs["base_url"])
+
+
 if __name__ == "__main__":
     unittest.main()
