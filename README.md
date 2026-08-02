@@ -235,7 +235,7 @@ pytest
 uvicorn app.main:app --reload
 ```
 
-- The test suite is **327 tests / 894 subtests**, all green (some POSIX-only
+- The test suite is **412 tests / 895 subtests**, all green (some POSIX-only
   chmod tests skip on Windows).
 - Tests mock the network (providers) and ffmpeg conversions; the core functions
   generate real WAV files so pipelines run end to end.
@@ -280,7 +280,14 @@ tests/                     # full suite (unit + web E2E)
   voice-to-text dictation app for Linux. All core engine code is derived from
   it.
 - This fork removes the Qt desktop UI and adds a FastAPI + HTMX web interface,
-  single-password auth, background jobs, and Docker packaging.
+  single-password auth, background jobs, local whisper.cpp/llama.cpp support,
+  and Docker packaging.
+
+## Contributors
+
+- **[eco-null](https://github.com/eco-null)** — the web rewrite: FastAPI + HTMX
+  interface, single-password auth, background jobs, model management UI, modern
+  dark design system, Docker packaging, and the full test suite.
 
 ## License
 

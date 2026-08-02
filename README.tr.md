@@ -236,7 +236,7 @@ pytest
 uvicorn app.main:app --reload
 ```
 
-- Test takımı **327 test / 894 alt test**, hepsi yeşil (bazı POSIX'e özel chmod
+- Test takımı **412 test / 895 alt test**, hepsi yeşil (bazı POSIX'e özel chmod
   testleri Windows'ta atlanır).
 - Testler ağı (sağlayıcıları) ve ffmpeg dönüşümlerini mock'lar; çekirdek
   fonksiyonlar gerçek WAV üretir, böylece hatlar uçtan uca çalışır.
@@ -280,7 +280,14 @@ tests/                     # tam takım (birim + web E2E)
 - Orijinal proje: **[yusufipk/dikte](https://github.com/yusufipk/dikte)** —
   Linux için sesli dikte uygulaması. Tüm çekirdek motor kodu ondan türetilmiştir.
 - Bu fork, Qt masaüstü arayüzünü çıkarır ve FastAPI + HTMX web arayüzü, tek
-  şifreli kimlik doğrulama, arka plan işleri ve Docker paketlemesi ekler.
+  şifreli kimlik doğrulama, arka plan işleri, yerel whisper.cpp/llama.cpp
+  desteği ve Docker paketlemesi ekler.
+
+## Katkıda Bulunanlar
+
+- **[eco-null](https://github.com/eco-null)** — web yeniden yazımı: FastAPI +
+  HTMX arayüzü, tek şifreli kimlik doğrulama, arka plan işleri, model yönetim
+  arayüzü, modern koyu tasarım sistemi, Docker paketlemesi ve tam test takımı.
 
 ## Lisans
 
