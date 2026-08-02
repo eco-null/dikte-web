@@ -463,6 +463,7 @@ DEFAULTS = {
     "assistant_openrouter_model": "google/gemini-3.5-flash",
     "assistant_omniroute_base_url": "http://host.docker.internal:20128/v1",
     "assistant_omniroute_model": "",
+    "assistant_omniroute_api_key": "",
     "assistant_reasoning": "",      # empty -> the model's own default
     "assistant_dir": "",            # empty -> the home directory
     "assistant_prompt": "",         # empty -> language-specific default
@@ -561,6 +562,9 @@ class Config:
 
     def openrouter_key(self):
         return self.api_key("openrouter_api_key")
+
+    def omniroute_key(self):
+        return self.api_key("assistant_omniroute_api_key")
 
     def transcribe_target(self):
         """Key, endpoint and model for whichever provider does speech to text.

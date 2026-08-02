@@ -32,6 +32,7 @@ SECTIONS = {
                  "meeting_keep_audio"],
     "Assistant": ["assistant_provider", "assistant_openrouter_model",
                   "assistant_omniroute_base_url", "assistant_omniroute_model",
+                  "assistant_omniroute_api_key",
                   "assistant_session_minutes", "assistant_timeout",
                   "assistant_reasoning", "assistant_prompt"],
 }

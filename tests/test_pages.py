@@ -134,6 +134,12 @@ class PagesTest(DikteTest):
         self.assertIn("save-bar", body)
         self.assertIn('id="msg"', body)
 
+    def test_settings_page_has_omniroute_credentials(self):
+        body = self.client.get("/settings").text
+        self.assertIn('name="assistant_omniroute_base_url"', body)
+        self.assertIn('name="assistant_omniroute_model"', body)
+        self.assertIn('name="assistant_omniroute_api_key"', body)
+
     def test_result_textareas_auto_grow_in_css(self):
         css = self.client.get("/static/app.css").text
         self.assertIn("min-height: 120px", css)

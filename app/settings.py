@@ -56,15 +56,17 @@ WEB_FIELDS = {
     "meeting_participants": ("str", []),
     "assistant_provider": ("select", ["openrouter", "omniroute"]),
     "assistant_openrouter_model": ("str", []),
-    "assistant_omniroute_base_url": ("str", []),
-    "assistant_omniroute_model": ("str", []),
+"assistant_omniroute_base_url": ("str", []),
+"assistant_omniroute_model": ("str", []),
+"assistant_omniroute_api_key": ("str", []),
     "assistant_reasoning": ("str", []),
     "assistant_prompt": ("str", []),
     "assistant_session_minutes": ("int", []),
     "assistant_timeout": ("int", []),
 }
 
-MASKED = {"openai_api_key", "groq_api_key", "openrouter_api_key"}
+MASKED = {"openai_api_key", "groq_api_key", "openrouter_api_key",
+          "assistant_omniroute_api_key"}
 
 
 def _coerce(key, raw):

@@ -120,7 +120,9 @@ def _ask_http(prompt, conf, name, base_url, model, on_stage):
     messages = history + [{"role": "user", "content": prompt}]
     try:
         answer = api.chat(
-            messages, conf.openrouter_key(), model, conf.assistant_prompt(),
+            messages,
+            conf.omniroute_key() if name == "omniroute" else conf.openrouter_key(),
+            model, conf.assistant_prompt(),
             reasoning=conf["assistant_reasoning"], base_url=base_url,
             timeout=conf["assistant_timeout"], provider=name,
             service="OmniRoute" if name == "omniroute" else "OpenRouter",

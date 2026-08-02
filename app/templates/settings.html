@@ -25,6 +25,8 @@
           </select>
           {% elif key in masked %}
           <input name="{{ key }}" type="text" value="" placeholder="{{ settings[key] or t(key) }}">
+          {% elif key.endswith("_prompt") %}
+          <textarea name="{{ key }}" rows="3" placeholder="{{ t(key) }}">{{ settings[key] or '' }}</textarea>
           {% else %}
           <input name="{{ key }}" type="text" value="{{ settings[key] or '' }}" placeholder="{{ t(key) }}">
           {% endif %}
@@ -90,68 +92,77 @@
     list.innerHTML = "";
     if (data.whisper_error) list.appendChild(notice(data.whisper_error));
     if (data.llm_error) list.appendChild(notice(data.llm_error));
-    const prog = document.createElement("h3");
-    prog.textContent = "Programs";
-    list.appendChild(prog);
-    for (const p of data.programs || []) {
-      const row = document.createElement("div");
-      row.className = "row model-row";
-      row.appendChild(el("span", p.name + (p.system ? " (system)" : "") + (p.installed ? " — installed " + (p.version || "") : "")));
-      if (!p.installed) {
-        const b = document.createElement("button");
-        b.className = "btn btn-sm btn-primary";
-        b.textContent = "Install";
-        b.addEventListener("click", () => installModel({ kind: "program", name: p.name }));
-        row.appendChild(b);
-      }
-      list.appendChild(row);
-    }
-    const wm = document.createElement("h3");
-    wm.textContent = "Whisper models";
-    list.appendChild(wm);
-    for (const m of data.whisper_models || []) {
-      const row = document.createElement("div");
-      row.className = "row model-row";
-      row.appendChild(el("span", m.name + (m.installed ? " (installed)" : "")));
-      if (m.installed) {
-        const b = document.createElement("button");
-        b.className = "btn btn-sm btn-danger";
-        b.textContent = "Delete";
-        b.addEventListener("click", () => deleteModel(m.path));
-        row.appendChild(b);
-      } else {
-        const b = document.createElement("button");
-        b.className = "btn btn-sm btn-primary";
-        b.textContent = "Install";
-        b.addEventListener("click", () => installModel({ kind: "whisper", name: m.name }));
-        row.appendChild(b);
-      }
-      list.appendChild(row);
-    }
+    modelGroup(list, "Programs", (data.programs || []).map((p) => ({
+      label: p.name + (p.system ? " (system)" : "") + (p.installed ? " — installed " + (p.version || "") : ""),
+      installed: p.installed,
+      install: () => installModel({ kind: "program", name: p.name }),
+    })), 8);
+    modelGroup(list, "Whisper models", (data.whisper_models || []).map((m) => ({
+      label: m.name + (m.installed ? " (installed)" : ""),
+      installed: m.installed,
+      install: () => installModel({ kind: "whisper", name: m.name }),
+      remove: m.installed ? () => deleteModel(m.path) : null,
+    })), 6);
     for (const repo of data.llm || []) {
-      const h = document.createElement("h3");
-      h.textContent = repo.repo;
-      list.appendChild(h);
-      for (const q of repo.quants || []) {
-        const row = document.createElement("div");
-        row.className = "row model-row";
-        row.appendChild(el("span", q.name + (q.installed ? " (installed)" : "")));
-        if (q.installed) {
-          const b = document.createElement("button");
-          b.className = "btn btn-sm btn-danger";
-          b.textContent = "Delete";
-          b.addEventListener("click", () => deleteModel(q.path));
-          row.appendChild(b);
-        } else {
-          const b = document.createElement("button");
-          b.className = "btn btn-sm btn-primary";
-          b.textContent = "Install";
-          b.addEventListener("click", () => installModel({ kind: "llm", name: q.name, repo: repo.repo }));
-          row.appendChild(b);
-        }
-        list.appendChild(row);
-      }
+      modelGroup(list, repo.repo, (repo.quants || []).map((q) => ({
+        label: q.name + (q.installed ? " (installed)" : ""),
+        installed: q.installed,
+        install: () => installModel({ kind: "llm", name: q.name, repo: repo.repo }),
+        remove: q.installed ? () => deleteModel(q.path) : null,
+      })), 5);
     }
+  }
+
+  function modelGroup(container, title, rows, visible) {
+    const det = document.createElement("details");
+    det.className = "model-group";
+    det.open = true;
+    const sum = document.createElement("summary");
+    const head = document.createElement("span");
+    head.textContent = title + " (" + rows.length + ")";
+    sum.appendChild(head);
+    det.appendChild(sum);
+    const body = document.createElement("div");
+    body.className = "model-group-body";
+    const shown = rows.slice(0, visible);
+    const hidden = rows.slice(visible);
+    for (const r of shown) body.appendChild(modelRow(r));
+    if (hidden.length) {
+      const more = document.createElement("button");
+      more.className = "btn btn-ghost btn-sm";
+      more.textContent = "Show " + hidden.length + " more";
+      more.addEventListener("click", () => {
+        for (const r of hidden) body.appendChild(modelRow(r));
+        more.remove();
+      });
+      body.appendChild(more);
+    }
+    det.appendChild(body);
+    container.appendChild(det);
+  }
+
+  function modelRow(r) {
+    const row = document.createElement("div");
+    row.className = "model-row";
+    row.appendChild(el("span", r.label));
+    const acts = document.createElement("div");
+    acts.className = "row";
+    if (r.installed && r.remove) {
+      const b = document.createElement("button");
+      b.className = "btn btn-sm btn-danger";
+      b.textContent = "Delete";
+      b.addEventListener("click", r.remove);
+      acts.appendChild(b);
+    }
+    if (!r.installed && r.install) {
+      const b = document.createElement("button");
+      b.className = "btn btn-sm btn-primary";
+      b.textContent = "Install";
+      b.addEventListener("click", r.install);
+      acts.appendChild(b);
+    }
+    if (acts.childNodes.length) row.appendChild(acts);
+    return row;
   }
 
   function el(tag, text) {

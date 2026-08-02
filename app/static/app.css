@@ -440,6 +440,36 @@ input:focus, textarea:focus, select:focus { border-color: var(--color-primary); 
 }
 .model-row:hover { border-color: var(--color-muted); }
 
+.model-group {
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  background: var(--color-bg-elev);
+  margin-bottom: var(--space-3);
+  overflow: hidden;
+}
+.model-group summary {
+  cursor: pointer;
+  list-style: none;
+  padding: var(--space-3) var(--space-4);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  user-select: none;
+}
+.model-group summary::-webkit-details-marker { display: none; }
+.model-group summary::before {
+  content: "▸ ";
+  color: var(--color-muted);
+  transition: transform var(--duration-fast) var(--ease);
+  display: inline-block;
+}
+.model-group[open] summary::before { transform: rotate(90deg); }
+.model-group-body {
+  padding: 0 var(--space-3) var(--space-3);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
 /* ---------- reduced motion ---------- */
 
 @media (prefers-reduced-motion: reduce) {
