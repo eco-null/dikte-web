@@ -85,3 +85,15 @@ class JobManager:
         overflow = len(finished) - self.max_jobs
         for job in finished[:overflow]:
             self._jobs.pop(job.id, None)
+
+
+# The one manager the app routes share.
+_manager = JobManager()
+
+
+def submit(kind, work):
+    return _manager.submit(kind, work)
+
+
+def get(job_id):
+    return _manager.get(job_id)

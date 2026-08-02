@@ -146,7 +146,9 @@ async def create_meeting(request: Request, file: UploadFile = File(...),
             base = meeting.new_base()
             entry = meeting.new_entry(base, duration)
             cfg.save_meeting(entry)
-            shutil.move(wav, cfg.meeting_paths(base)[1])
+            target_wav = cfg.meeting_paths(base)[1]
+            target_wav.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(wav, target_wav)
             if participants.strip():
                 conf["meeting_participants"] = participants
             pipeline = meeting.MeetingPipeline(conf)
