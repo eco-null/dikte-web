@@ -283,12 +283,6 @@ tests/                     # full suite (unit + web E2E)
   single-password auth, background jobs, local whisper.cpp/llama.cpp support,
   and Docker packaging.
 
-## Contributors
-
-- **[eco-null](https://github.com/eco-null)** — the web rewrite: FastAPI + HTMX
-  interface, single-password auth, background jobs, model management UI, modern
-  dark design system, Docker packaging, and the full test suite.
-
 ## License
 
 See the upstream project for the original license terms. This fork keeps the

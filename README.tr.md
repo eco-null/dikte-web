@@ -283,12 +283,6 @@ tests/                     # tam takım (birim + web E2E)
   şifreli kimlik doğrulama, arka plan işleri, yerel whisper.cpp/llama.cpp
   desteği ve Docker paketlemesi ekler.
 
-## Katkıda Bulunanlar
-
-- **[eco-null](https://github.com/eco-null)** — web yeniden yazımı: FastAPI +
-  HTMX arayüzü, tek şifreli kimlik doğrulama, arka plan işleri, model yönetim
-  arayüzü, modern koyu tasarım sistemi, Docker paketlemesi ve tam test takımı.
-
 ## Lisans
 
 Orijinal lisans koşulları için yukarıdaki projeye bakın. Bu fork,
