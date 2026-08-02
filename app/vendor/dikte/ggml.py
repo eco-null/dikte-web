@@ -24,6 +24,7 @@ Its errors leave as LocalError and api.py turns them into the ApiError the
 interface already knows how to show.
 """
 
+import atexit
 import collections
 import ctypes.util
 import hashlib
@@ -33,9 +34,12 @@ import os
 import pathlib
 import platform
 import shutil
+import signal
 import socket
+import subprocess
 import tarfile
 import threading
+import time
 import urllib.error
 import urllib.request
 
@@ -355,3 +359,444 @@ def _drop_old_versions(program, keep):
                 shutil.rmtree(path, ignore_errors=True)
     except OSError:
         pass
+
+
+# --- the models -----------------------------------------------------------
+
+
+def whisper_models(refresh=False):
+    """[hub.Item] for every whisper model on offer, smallest first."""
+    try:
+        files = hub.files(WHISPER_MODELS_REPO, refresh=refresh)
+    except hub.HubError as exc:
+        raise LocalError(str(exc)) from exc
+    models = [f for f in files
+              if f.name.startswith(WHISPER_PREFIX) and f.name.endswith(WHISPER_SUFFIX)
+              and f.size > 0]
+    return sorted(models, key=lambda f: f.size)
+
+
+def llm_repos(refresh=False):
+    """Repository ids for the GGUF models on offer, suggestions first."""
+    try:
+        found = [r.id for r in hub.repos(author=LLM_AUTHOR, refresh=refresh)]
+    except hub.HubError:
+        # A menu rather than a catalogue: with nothing to show, the suggestions
+        # are still worth showing, and whatever is wrong with the network will
+        # say so where it matters, when a download is asked for.
+        found = []
+    if not found:
+        return list(SUGGESTED_LLM)
+    first = [r for r in SUGGESTED_LLM if r in found]
+    return first + [r for r in found if r not in first]
+
+
+def llm_quants(repo, refresh=False):
+    """[hub.Item] for the model files in one GGUF repository, smallest first."""
+    try:
+        files = hub.files(repo, refresh=refresh)
+    except hub.HubError as exc:
+        raise LocalError(str(exc)) from exc
+    out = []
+    for item in files:
+        name = item.name.rsplit("/", 1)[-1]
+        if not name.endswith(".gguf") or name.startswith(GGUF_SKIP):
+            continue
+        # A model split across files needs all of them and a different command
+        # line; anything cleanup wants fits in one.
+        if "-of-000" in name or not 0 < item.size <= GGUF_MAX_BYTES:
+            continue
+        out.append(item)
+    return sorted(out, key=lambda f: f.size)
+
+
+def whisper_model_path(name):
+    return MODELS_DIR / "whisper" / name
+
+
+def llm_model_path(name):
+    return MODELS_DIR / "llm" / name.rsplit("/", 1)[-1]
+
+
+def have_model(path):
+    path = pathlib.Path(path)
+    return path.is_file() and path.stat().st_size > 0
+
+
+def installed_whisper_models():
+    return sorted(p.name for p in (MODELS_DIR / "whisper").glob("*.bin"))
+
+
+def installed_llm_models():
+    return sorted(p.name for p in (MODELS_DIR / "llm").glob("*.gguf"))
+
+
+def delete_model(path):
+    try:
+        pathlib.Path(path).unlink()
+    except FileNotFoundError:
+        pass
+    except OSError as exc:
+        raise LocalError(t("Could not delete the model: {error}", error=exc)) from exc
+
+
+# --- one server -----------------------------------------------------------
+
+
+def _free_port():
+    """A port nothing is listening on, handed straight to the server.
+
+    Between closing this socket and the server binding it, something else could
+    take it; that is why a start retries rather than trusting the number.
+    """
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind((HOST, 0))
+        return sock.getsockname()[1]
+
+
+def _listening(port):
+    try:
+        with socket.create_connection((HOST, port), timeout=0.5):
+            return True
+    except OSError:
+        return False
+
+
+def _healthy(port, path):
+    """Whether the model is in memory, for a server that says so.
+
+    Spoken over http.client rather than urllib because this never leaves the
+    machine: it is the same question as _listening, one layer up.
+    """
+    connection = http.client.HTTPConnection(HOST, port, timeout=2)
+    try:
+        connection.request("GET", path)
+        # 503 for as long as the model is still being read in.
+        return connection.getresponse().status == 200
+    except (http.client.HTTPException, OSError):
+        return False
+    finally:
+        connection.close()
+
+
+def _tail(path, lines=3):
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            found = [line.strip() for line in fh if line.strip()]
+    except OSError:
+        return ""
+    return " | ".join(found[-lines:])
+
+
+class Server:
+    """One process, started when something needs it and stopped when nothing does.
+
+    `build` turns the settings into a command line; everything else about
+    running a server is the same for both programs.
+    """
+
+    def __init__(self, program, build, defaults):
+        self.program = program
+        self._build = build
+        self._settings = dict(defaults)
+        # Two locks on purpose. `_lock` is held for the length of a dictionary
+        # lookup, so the interface can ask what is running while a model is
+        # being loaded; `_starting` is held across the start itself, which can
+        # take a minute and which two threads must not both do.
+        self._lock = threading.Lock()
+        self._starting = threading.Lock()
+        self._proc = None
+        self._port = 0
+        self._log = ""
+        self._key = None
+
+    # ---- settings --------------------------------------------------------
+
+    def configure(self, **changes):
+        """Apply settings. A server started on the old ones is stopped."""
+        with self._lock:
+            for key, value in changes.items():
+                if value is not None and key in self._settings:
+                    self._settings[key] = value
+            stale = self._proc is not None and self._key != self._settings_key()
+        if stale:
+            self.stop()
+
+    def settings(self):
+        with self._lock:
+            return dict(self._settings)
+
+    def _settings_key(self):
+        """What a running server would have to be restarted for."""
+        return json.dumps(self._settings, sort_keys=True, default=str)
+
+    # ---- process ---------------------------------------------------------
+
+    @property
+    def running(self):
+        with self._lock:
+            return self._proc is not None and self._proc.poll() is None
+
+    def base_url(self):
+        with self._lock:
+            return f"http://{HOST}:{self._port}/v1" if self._port else ""
+
+    def error(self):
+        """The last thing the server printed, for a failure after it started."""
+        with self._lock:
+            log = self._log
+        return _tail(log) if log else ""
+
+    def serve(self):
+        """The base URL of a server that is up and running the current settings."""
+        ready = self._current_url()
+        if ready:
+            return ready
+        with self._starting:
+            # Somebody may have started it while this thread waited its turn.
+            ready = self._current_url()
+            if ready:
+                return ready
+            self.stop()
+            with self._lock:
+                settings, key = dict(self._settings), self._settings_key()
+            proc, port, log = self._launch(settings)
+            with self._lock:
+                self._proc, self._port, self._log, self._key = proc, port, log, key
+            return self.base_url()
+
+    def _current_url(self):
+        with self._lock:
+            up = self._proc is not None and self._proc.poll() is None
+            return (f"http://{HOST}:{self._port}/v1"
+                    if up and self._key == self._settings_key() else "")
+
+    def _launch(self, settings):
+        args = self._build(settings)        # raises LocalError when unusable
+        last = ""
+        for _ in range(3):
+            port = _free_port()
+            log = DATA_DIR / f"{self.program.name}-server.log"
+            try:
+                log.parent.mkdir(parents=True, exist_ok=True)
+                sink = open(log, "wb")
+            except OSError as exc:
+                raise LocalError(t("Could not start {name}: {error}",
+                                   name=self.program.name, error=exc)) from exc
+            try:
+                with sink:
+                    proc = subprocess.Popen(
+                        args + ["--host", HOST, "--port", str(port)],
+                        stdout=sink, stderr=subprocess.STDOUT,
+                        stdin=subprocess.DEVNULL,
+                    )
+            except OSError as exc:
+                raise LocalError(t("Could not start {name}: {error}",
+                                   name=self.program.name, error=exc)) from exc
+
+            # Written before it is ready rather than after, so that a kill
+            # during the model load leaves something for the sweep to find.
+            self._remember(proc.pid)
+            try:
+                ready = self._wait_ready(proc, port)
+            except BaseException:
+                # Whatever went wrong while waiting, the process is ours and
+                # nothing else is left holding a reference to it. Leaving it
+                # running would leak a loaded model with nobody to ask it
+                # anything, which is the whole failure this class is careful
+                # about elsewhere.
+                self._kill(proc)
+                self._forget()
+                raise
+            if ready:
+                return proc, port, str(log)
+            last = _tail(log)
+            self._forget()
+            # A port taken between the probe and the bind is the one failure
+            # worth another go; anything else will fail the same way again.
+            if "address" not in last.lower() and "bind" not in last.lower():
+                break
+        raise LocalError(t("{name} did not start: {error}",
+                           name=self.program.binary, error=last or t("no output")))
+
+    def _wait_ready(self, proc, port):
+        deadline = time.monotonic() + STARTUP_TIMEOUT
+        while time.monotonic() < deadline:
+            if proc.poll() is not None:
+                return False
+            if _listening(port):
+                # whisper binds after the model is loaded, so the open port is
+                # the answer. llama binds first and answers /health with 503
+                # until it is ready.
+                if not self.program.health or _healthy(port, self.program.health):
+                    return True
+            time.sleep(0.1)
+        self._kill(proc)
+        return False
+
+    @staticmethod
+    def _kill(proc, gently=False):
+        """Stop a process of ours, and wait for it rather than assume."""
+        if proc is None or proc.poll() is not None:
+            return
+        if gently:
+            proc.terminate()
+            try:
+                proc.wait(timeout=5)
+                return
+            except subprocess.TimeoutExpired:
+                pass
+        proc.kill()
+        try:
+            proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            pass
+
+    def stop(self):
+        with self._lock:
+            proc, self._proc = self._proc, None
+            self._port, self._log, self._key = 0, "", None
+        self._kill(proc, gently=True)
+        if proc is not None:
+            self._forget()
+
+    # ---- servers a killed Dikte left behind -------------------------------
+
+    def _pid_file(self):
+        return DATA_DIR / f"{self.program.name}-server.pid"
+
+    def _remember(self, pid):
+        try:
+            path = self._pid_file()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(str(pid))
+        except OSError:
+            pass      # the sweep is a safety net, not something to fail a run over
+
+    def _forget(self):
+        try:
+            self._pid_file().unlink()
+        except OSError:
+            pass
+
+    def _is_ours(self, pid):
+        """Whether that pid is still the server this Dikte started.
+
+        Asked because pids are handed out again: by the time anyone looks, the
+        number could belong to something else entirely, and killing it would be
+        a good deal worse than the leak being cleaned up. The program name alone
+        could be somebody else's copy; the name together with Dikte's own data
+        directory on the command line could not.
+        """
+        try:
+            blob = pathlib.Path(f"/proc/{pid}/cmdline").read_bytes()
+        except OSError:
+            return False
+        return (self.program.binary.encode() in blob
+                and str(DATA_DIR).encode() in blob)
+
+    def sweep(self):
+        """Kill a server a previous Dikte left behind. True when one was found.
+
+        stop() and atexit cover every exit that gets to run code. A SIGKILL does
+        not, and neither does a session torn down from under it, and the server
+        would then sit there holding the model with nothing left alive to ask it
+        anything.
+        """
+        try:
+            pid = int(self._pid_file().read_text().strip())
+        except (OSError, ValueError):
+            return False
+        self._forget()
+        if not self._is_ours(pid):
+            return False
+        try:
+            os.kill(pid, signal.SIGTERM)
+        except OSError:
+            return False
+        return True
+
+
+# --- the two of them ------------------------------------------------------
+
+
+def _whisper_args(settings):
+    binary = program_path(WHISPER, settings["binary"])
+    if not binary:
+        raise LocalError(t("whisper.cpp is not installed. Settings → API and "
+                           "models → Download."))
+    model = whisper_model_path(settings["model"])
+    if not settings["model"] or not have_model(model):
+        raise LocalError(t("No whisper model has been downloaded yet. "
+                           "Settings → API and models → Download."))
+    args = [
+        binary, "-m", str(model),
+        "--inference-path", INFERENCE_PATH,
+        # Whatever language the request does not name. api.py leaves the field
+        # out when the language is "auto", and the server's own default is
+        # English rather than detection.
+        "-l", "auto",
+        # Stock phrases invented for near-silence come from non-speech tokens,
+        # and verbose_json otherwise pays for a language probability sweep
+        # nothing here reads.
+        "-sns", "-nlp",
+    ]
+    if int(settings["threads"]) > 0:
+        args += ["-t", str(int(settings["threads"]))]
+    if not settings["gpu"]:
+        args.append("-ng")
+    return args
+
+
+def _llm_args(settings):
+    binary = program_path(LLAMA, settings["binary"])
+    if not binary:
+        raise LocalError(t("llama.cpp is not installed. Settings → API and "
+                           "models → Download."))
+    model = llm_model_path(settings["model"])
+    if not settings["model"] or not have_model(model):
+        raise LocalError(t("No local cleanup model has been downloaded yet. "
+                           "Settings → API and models → Download."))
+    args = [binary, "-m", str(model), "-c", str(int(settings["context"]))]
+    # All of them, or as many as fit: llama.cpp stops offloading when the card
+    # is full rather than failing, and a build with no GPU backend ignores it.
+    args += ["-ngl", "99" if settings["gpu"] else "0"]
+    if int(settings["threads"]) > 0:
+        args += ["-t", str(int(settings["threads"]))]
+    return args
+
+
+whisper = Server(WHISPER, _whisper_args, {
+    "model": "",
+    "threads": 0,
+    "gpu": True,
+    "binary": "",
+})
+
+llm = Server(LLAMA, _llm_args, {
+    "model": "",
+    "threads": 0,
+    "gpu": True,
+    "binary": "",
+    # A dictation and its prompt are short. This is sized for the longest
+    # cleanup block rather than for a conversation, and it is what the model
+    # costs in memory beyond its own weights.
+    "context": 8192,
+})
+
+SERVERS = (whisper, llm)
+
+
+def sweep():
+    """Clean up after a Dikte that was killed outright. True when one was found."""
+    return any([server.sweep() for server in SERVERS])
+
+
+def stop_all():
+    for server in SERVERS:
+        server.stop()
+
+
+# Dikte stops the servers itself on quit and on restart; this catches the paths
+# that skip that, such as an unhandled exception on the way out.
+atexit.register(stop_all)

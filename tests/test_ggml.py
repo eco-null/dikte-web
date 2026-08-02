@@ -1,6 +1,7 @@
 """ggml: downloads, installs, and runs whisper.cpp / llama.cpp."""
 
 import hashlib
+import socket
 import unittest
 from unittest import mock
 
@@ -72,6 +73,94 @@ class GgmlDownload(DikteTest):
                                should_stop=lambda: True)
         self.assertFalse(ok)
         self.assertFalse(self.path("m.bin").exists())
+
+
+def _files_reply(items):
+    """hub.files expects a raw HF API list body with type: file entries."""
+    import json
+    body = [{"type": "file", "path": it.name,
+             "lfs": {"size": it.size, "oid": "sha256:" + it.sha256},
+             "downloadUrl": it.url} for it in items]
+    return fake_urlopen(json.loads(json.dumps(body)))
+
+
+class GgmlCatalog(DikteTest):
+    def setUp(self):
+        super().setUp()
+        self.patch_attr(ggml, "DATA_DIR", self.path("data"))
+        self.patch_attr(ggml, "BIN_DIR", self.path("data", "bin"))
+        self.patch_attr(ggml, "MODELS_DIR", self.path("data", "models"))
+        self.patch_attr(hub, "CACHE_DIR", self.path("cache"))
+
+    def test_whisper_models_filters_and_sorts(self):
+        files = [hub.Item(f"ggml-{n}.bin", f"https://x/{n}", size, "a")
+                 for n, size in (("large", 900), ("small", 100), ("tiny", 10))]
+        files.append(hub.Item("README.md", "https://x/r", 5, "a"))
+        with _files_reply(files):
+            models = ggml.whisper_models()
+        self.assertEqual([m.name for m in models],
+                         ["ggml-tiny.bin", "ggml-small.bin", "ggml-large.bin"])
+
+    def test_llm_quants_skips_multipart_and_oversized(self):
+        big = hub.Item("big.gguf", "https://x/b", (16 << 30) + 1, "a")
+        split = hub.Item("m-of-00002.gguf", "https://x/s", 100, "a")
+        good = hub.Item("m.gguf", "https://x/m", 200, "a")
+        with _files_reply([big, split, good]):
+            quants = ggml.llm_quants("ggml-org/gemma-3-4b-it-GGUF")
+        self.assertEqual([q.name for q in quants], ["m.gguf"])
+
+    def test_installed_whisper_models(self):
+        d = ggml.MODELS_DIR / "whisper"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "ggml-a.bin").write_bytes(b"x")
+        (d / "ggml-b.bin").write_bytes(b"x")
+        (d / "junk.txt").write_text("x")
+        self.assertEqual(ggml.installed_whisper_models(),
+                         ["ggml-a.bin", "ggml-b.bin"])
+
+    def test_delete_model(self):
+        p = self.path("data", "models", "whisper", "ggml-x.bin")
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(b"x")
+        ggml.delete_model(str(p))
+        self.assertFalse(p.exists())
+        ggml.delete_model(str(p))  # idempotent
+
+    def test_free_port_is_listenable(self):
+        port = ggml._free_port()
+        # _free_port hands out a port nothing is listening on, and one that can
+        # be bound again: the docstring's contract, which a start depends on.
+        self.assertFalse(ggml._listening(port))
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+            sock.bind((ggml.HOST, port))
+
+
+class GgmlServer(DikteTest):
+    def setUp(self):
+        super().setUp()
+        self.patch_attr(ggml, "DATA_DIR", self.path("data"))
+        self.patch_attr(ggml, "BIN_DIR", self.path("data", "bin"))
+        self.patch_attr(ggml, "MODELS_DIR", self.path("data", "models"))
+        ggml.stop_all()
+        self.addCleanup(ggml.stop_all)
+
+    def test_server_configure_and_settings(self):
+        ggml.whisper.configure(model="ggml-small.bin")
+        self.assertEqual(ggml.whisper.settings()["model"], "ggml-small.bin")
+
+    def test_server_serve_returns_url_when_running(self):
+        proc = mock.MagicMock()
+        proc.poll.return_value = None
+        ggml.whisper._proc = proc
+        ggml.whisper._port = 12345
+        ggml.whisper._key = ggml.whisper._settings_key()
+        self.assertEqual(ggml.whisper.serve(), "http://127.0.0.1:12345/v1")
+
+    def test_stop_all_clears_servers(self):
+        ggml.whisper._proc = mock.MagicMock()
+        ggml.whisper._port = 1
+        ggml.stop_all()
+        self.assertIsNone(ggml.whisper._proc)
 
 
 if __name__ == "__main__":
