@@ -3,6 +3,7 @@
 import os
 import shutil
 import tempfile
+from pathlib import Path
 
 from fastapi import APIRouter, Body, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import Response
@@ -137,6 +138,7 @@ def install_model(request: Request, payload: dict = Body(...)):
                                    emit(f"Downloading… {_pct(done, total)}"))
             if ok:
                 conf["local_model"] = name
+                conf.save()
             return {"path": str(target), "installed": ok}
         if kind == "llm":
             item = next((q for q in ggml.llm_quants(repo) if q.name == name), None)
@@ -148,6 +150,7 @@ def install_model(request: Request, payload: dict = Body(...)):
                                    emit(f"Downloading… {_pct(done, total)}"))
             if ok:
                 conf["local_llm_model"] = name
+                conf.save()
             return {"path": str(target), "installed": ok}
         raise HTTPException(400, detail="unknown kind")
 
@@ -159,6 +162,10 @@ def delete_model_route(request: Request, payload: dict = Body(...)):
     path = str(payload.get("path") or "")
     if not path:
         raise HTTPException(400, detail="no path")
+    resolved = Path(path).resolve()
+    models_dir = Path(ggml.MODELS_DIR).resolve()
+    if not resolved.is_relative_to(models_dir):
+        raise HTTPException(400, detail="path outside the models directory")
     try:
         ggml.delete_model(path)
     except ggml.LocalError as exc:
@@ -300,6 +307,7 @@ def retry_meeting(request: Request, base: str):
     conf = _conf(request)
 
     def work(emit):
+        _hydrate_local(conf)
         pipeline = meeting.MeetingPipeline(conf)
         pipeline.progress.connect(lambda b, msg: emit(msg))
         title = pipeline.run(row)

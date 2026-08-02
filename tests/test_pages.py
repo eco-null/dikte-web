@@ -124,6 +124,8 @@ class PagesTest(DikteTest):
         self.assertIn('name="transcribe_provider"', body)
         self.assertIn('name="cleanup_provider"', body)
         self.assertIn('name="local_model"', body)
+        self.assertIn('name="ui_language"', body)
+        self.assertIn('name="file_timestamps"', body)
         self.assertIn("data-models", body)
 
 

@@ -227,6 +227,40 @@ class Meetings(RouteTest):
                 job = self.wait_job(resp.json()["job_id"])
         self.assertEqual(job["status"], "done", job)
 
+    def test_retry_hydrates_the_local_server(self):
+        conf = cfg.Config()
+        web_settings.apply(conf, {"transcribe_provider": "local",
+                                  "local_model": "ggml-small.bin",
+                                  "openrouter_api_key": "sk-or-test",
+                                  "cleanup_enabled": False})
+        from app.main import app as fastapi_app
+        fastapi_app.state.conf = conf
+        base = "20260101-140000"
+        wav = self.path("meet.wav")
+        make_wav(wav, speech(1.0))
+        cfg.save_meeting({"base": base, "status": "failed", "title": "",
+                          "error": "old error"})
+        cfg.meeting_paths(base)[1].parent.mkdir(parents=True, exist_ok=True)
+        import shutil
+        shutil.copyfile(wav, cfg.meeting_paths(base)[1])
+
+        def fake_request(url, data, headers, timeout=120, aborter=None):
+            if "/chat/completions" in url:
+                return {"choices": [{"message": {"content": "# Toplantı\n\nÖzet"}}]}
+            return {"segments": [{"start": 0.0, "end": 1.0,
+                                  "text": "yerel metin"}]}
+
+        with mock.patch("filetranscribe._ffmpeg") as ff, \
+                mock.patch("ggml.whisper.configure") as cfgw, \
+                mock.patch("api.serving",
+                           return_value="http://127.0.0.1:9999/v1"), \
+                mock.patch("api._request", side_effect=fake_request):
+            ff.side_effect = lambda *a, **k: str(wav)
+            resp = self.client.post(f"/api/meetings/{base}/retry")
+            job = self.wait_job(resp.json()["job_id"])
+        self.assertEqual(job["status"], "done", job)
+        cfgw.assert_called()
+
 
 class Agent(RouteTest):
     def test_a_question_is_answered(self):

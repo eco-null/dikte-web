@@ -72,6 +72,27 @@ class ModelsTest(DikteTest):
         self.assertEqual(resp.status_code, 200)
         self.assertFalse(p.exists())
 
+    def test_delete_refuses_a_path_outside_models_dir(self):
+        p = self.path("data", "config.json")
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(b"keep me")
+        resp = self.client.post("/api/models/delete", json={"path": str(p)})
+        self.assertEqual(resp.status_code, 400)
+        self.assertTrue(p.exists())
+
+    def test_install_whisper_persists_the_selection(self):
+        item = hub.Item("ggml-small.bin", "https://x/s", 100, "a")
+        with _files_reply([item]):
+            with mock.patch("ggml.download", return_value=True):
+                resp = self.client.post(
+                    "/api/models/install",
+                    json={"kind": "whisper", "name": "ggml-small.bin"})
+                job = self._wait(resp.json()["job_id"])
+        self.assertEqual(job["status"], "done", job)
+        self.assertTrue(job["result"]["installed"])
+        fresh = cfg.Config()
+        self.assertEqual(fresh["local_model"], "ggml-small.bin")
+
     def _wait(self, job_id, timeout=10):
         deadline = time.time() + timeout
         while time.time() < deadline:
