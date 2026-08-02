@@ -8,7 +8,7 @@ cleanup; T3–T7).
 import importlib
 import sys
 
-_MODULES = ("i18n", "ggml", "hub", "vad", "api", "config", "assistant",
+_MODULES = ("i18n", "hub", "ggml", "vad", "api", "config", "assistant",
             "cleanup", "filetranscribe", "meeting", "worker")
 
 for _name in _MODULES:
