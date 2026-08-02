@@ -2,36 +2,42 @@
 {% block content %}
 <section class="card">
   <h1>{{ t("Settings") }}</h1>
-  <form id="settings-form">
-    {% for key, (kind, choices) in fields.items() %}
-    <label>{{ t(key) }}
-      {% if kind == "bool" %}
-      <select name="{{ key }}" data-kind="bool">
-        <option value="on" {% if settings[key] %}selected{% endif %}>{{ t("On") }}</option>
-        <option value="off" {% if not settings[key] %}selected{% endif %}>{{ t("Off") }}</option>
-      </select>
-      {% elif kind == "select" %}
-      <select name="{{ key }}">
-        {% for choice in choices %}
-        <option value="{{ choice }}" {% if settings[key] == choice %}selected{% endif %}>{{ choice }}</option>
-        {% endfor %}
-      </select>
-      {% else %}
-      {% if key in masked %}
-      <input name="{{ key }}" type="text"
-             value=""
-             placeholder="{{ settings[key] or t(key) }}">
-      {% else %}
-      <input name="{{ key }}" type="text"
-             value="{{ settings[key] or '' }}"
-             placeholder="{{ t(key) }}">
-      {% endif %}
-      {% endif %}
-    </label>
+  <form id="settings-form" class="settings-form">
+    {% for section, keys in sections.items() %}
+    <fieldset class="settings-section">
+      <legend>{{ t(section) }}</legend>
+      {% for key in keys %}{% if key in fields %}
+      <label class="field">{{ t(key) }}
+        {% if fields[key][0] == "bool" %}
+        <select name="{{ key }}" data-kind="bool">
+          <option value="on" {% if settings[key] %}selected{% endif %}>{{ t("On") }}</option>
+          <option value="off" {% if not settings[key] %}selected{% endif %}>{{ t("Off") }}</option>
+        </select>
+        {% elif fields[key][0] == "select" %}
+        <select name="{{ key }}">
+          {% for choice in fields[key][1] %}
+          <option value="{{ choice }}" {% if settings[key] == choice %}selected{% endif %}>{{ choice }}</option>
+          {% endfor %}
+        </select>
+        {% elif key in masked %}
+        <input name="{{ key }}" type="text" value="" placeholder="{{ settings[key] or t(key) }}">
+        {% else %}
+        <input name="{{ key }}" type="text" value="{{ settings[key] or '' }}" placeholder="{{ t(key) }}">
+        {% endif %}
+      </label>
+      {% endif %}{% endfor %}
+    </fieldset>
     {% endfor %}
-    <button class="btn primary" type="submit">{{ t("Save") }}</button>
-    <p id="msg" class="stage"></p>
+    <button class="btn btn-primary" type="submit">{{ t("Save") }}</button>
+    <p id="msg" class="stage" role="status"></p>
   </form>
+</section>
+
+<section class="card" data-models>
+  <h2>{{ t("Models") }}</h2>
+  <p id="models-stage" class="stage" role="status"></p>
+  <div id="models-loading" class="muted">{{ t("Loading…") }}</div>
+  <div id="models-list"></div>
 </section>
 <script>
   document.getElementById("settings-form").addEventListener("submit", async (e) => {
@@ -47,8 +53,129 @@
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ settings: out }),
     });
-    document.getElementById("msg").textContent = resp.ok ? "Saved successfully." : (await resp.json()).detail || resp.status;
+    const msg = document.getElementById("msg");
+    msg.textContent = resp.ok ? "Saved successfully." : (await resp.json()).detail || resp.status;
     if (resp.ok) setTimeout(() => location.reload(), 700);
   });
+
+  async function loadModels() {
+    const list = document.getElementById("models-list");
+    const loading = document.getElementById("models-loading");
+    loading.hidden = false;
+    const resp = await fetch("/api/models");
+    const data = await resp.json();
+    loading.hidden = true;
+    list.innerHTML = "";
+    if (data.whisper_error) list.appendChild(notice(data.whisper_error));
+    if (data.llm_error) list.appendChild(notice(data.llm_error));
+    const prog = document.createElement("h3");
+    prog.textContent = "Programs";
+    list.appendChild(prog);
+    for (const p of data.programs || []) {
+      const row = document.createElement("div");
+      row.className = "row model-row";
+      row.appendChild(el("span", p.name + (p.system ? " (system)" : "") + (p.installed ? " — installed " + (p.version || "") : "")));
+      if (!p.installed) {
+        const b = document.createElement("button");
+        b.className = "btn btn-sm btn-primary";
+        b.textContent = "Install";
+        b.addEventListener("click", () => installModel({ kind: "program", name: p.name }));
+        row.appendChild(b);
+      }
+      list.appendChild(row);
+    }
+    const wm = document.createElement("h3");
+    wm.textContent = "Whisper models";
+    list.appendChild(wm);
+    for (const m of data.whisper_models || []) {
+      const row = document.createElement("div");
+      row.className = "row model-row";
+      row.appendChild(el("span", m.name + (m.installed ? " (installed)" : "")));
+      if (m.installed) {
+        const b = document.createElement("button");
+        b.className = "btn btn-sm btn-danger";
+        b.textContent = "Delete";
+        b.addEventListener("click", () => deleteModel(m.path));
+        row.appendChild(b);
+      } else {
+        const b = document.createElement("button");
+        b.className = "btn btn-sm btn-primary";
+        b.textContent = "Install";
+        b.addEventListener("click", () => installModel({ kind: "whisper", name: m.name }));
+        row.appendChild(b);
+      }
+      list.appendChild(row);
+    }
+    for (const repo of data.llm || []) {
+      const h = document.createElement("h3");
+      h.textContent = repo.repo;
+      list.appendChild(h);
+      for (const q of repo.quants || []) {
+        const row = document.createElement("div");
+        row.className = "row model-row";
+        row.appendChild(el("span", q.name + (q.installed ? " (installed)" : "")));
+        if (q.installed) {
+          const b = document.createElement("button");
+          b.className = "btn btn-sm btn-danger";
+          b.textContent = "Delete";
+          b.addEventListener("click", () => deleteModel(q.path));
+          row.appendChild(b);
+        } else {
+          const b = document.createElement("button");
+          b.className = "btn btn-sm btn-primary";
+          b.textContent = "Install";
+          b.addEventListener("click", () => installModel({ kind: "llm", name: q.name, repo: repo.repo }));
+          row.appendChild(b);
+        }
+        list.appendChild(row);
+      }
+    }
+  }
+
+  function el(tag, text) {
+    const n = document.createElement(tag);
+    n.textContent = text;
+    return n;
+  }
+  function notice(text) {
+    const p = document.createElement("p");
+    p.className = "warn";
+    p.textContent = text;
+    return p;
+  }
+  async function installModel(payload) {
+    const stage = document.getElementById("models-stage");
+    stage.textContent = "Starting…";
+    const resp = await fetch("/api/models/install", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    if (resp.status === 409) { stage.textContent = "Busy, one job at a time"; return; }
+    if (!resp.ok) { stage.textContent = (await resp.json()).detail || resp.status; return; }
+    const { job_id } = await resp.json();
+    const tick = async () => {
+      const job = await (await fetch("/api/jobs/" + job_id)).json();
+      stage.textContent = job.status === "running" ? (job.stage || "Working…") : job.status;
+      if (job.status === "done" || job.status === "failed") {
+        if (job.status === "failed") stage.textContent = job.error || "Failed";
+        loadModels();
+        return;
+      }
+      setTimeout(tick, 2000);
+    };
+    tick();
+  }
+  async function deleteModel(path) {
+    const stage = document.getElementById("models-stage");
+    const resp = await fetch("/api/models/delete", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path }),
+    });
+    stage.textContent = resp.ok ? "Deleted." : (await resp.json()).detail || resp.status;
+    loadModels();
+  }
+  loadModels();
 </script>
 {% endblock %}

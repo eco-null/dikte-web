@@ -111,6 +111,13 @@ class PagesTest(DikteTest):
         for marker in ("delete-selected", "row-check"):
             self.assertIn(marker, body)
 
+    def test_settings_page_has_local_and_models_sections(self):
+        body = self.client.get("/settings").text
+        self.assertIn('name="transcribe_provider"', body)
+        self.assertIn('name="cleanup_provider"', body)
+        self.assertIn('name="local_model"', body)
+        self.assertIn("data-models", body)
+
 
 if __name__ == "__main__":
     unittest.main()

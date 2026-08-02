@@ -84,6 +84,7 @@ def list_models(request: Request):
     whisper_error, llm_error = "", ""
     try:
         whisper = [{"name": m.name, "size": m.size, "url": m.url,
+                    "path": str(ggml.whisper_model_path(m.name)),
                     "installed": m.name in ggml.installed_whisper_models()}
                    for m in ggml.whisper_models()]
     except Exception as exc:
@@ -91,6 +92,7 @@ def list_models(request: Request):
     try:
         llm = [{"repo": r,
                 "quants": [{"name": q.name, "size": q.size, "url": q.url,
+                            "path": str(ggml.llm_model_path(q.name)),
                             "installed": q.name in ggml.installed_llm_models()}
                            for q in ggml.llm_quants(r)]}
                for r in ggml.llm_repos()]
