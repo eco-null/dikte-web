@@ -1,35 +1,42 @@
 {% extends "base.html" %}
 {% block content %}
 <section class="card">
-  <h1>{{ t("Settings") }}</h1>
+  <div class="settings-head">
+    <h1>{{ t("Settings") }}</h1>
+    <button class="btn btn-primary" type="submit" form="settings-form">{{ t("Save") }}</button>
+  </div>
   <form id="settings-form" class="settings-form">
     {% for section, keys in sections.items() %}
     <fieldset class="settings-section">
       <legend>{{ t(section) }}</legend>
-      {% for key in keys %}{% if key in fields %}
-      <label class="field">{{ t(key) }}
-        {% if fields[key][0] == "bool" %}
-        <select name="{{ key }}" data-kind="bool">
-          <option value="on" {% if settings[key] %}selected{% endif %}>{{ t("On") }}</option>
-          <option value="off" {% if not settings[key] %}selected{% endif %}>{{ t("Off") }}</option>
-        </select>
-        {% elif fields[key][0] == "select" %}
-        <select name="{{ key }}">
-          {% for choice in fields[key][1] %}
-          <option value="{{ choice }}" {% if settings[key] == choice %}selected{% endif %}>{{ choice }}</option>
-          {% endfor %}
-        </select>
-        {% elif key in masked %}
-        <input name="{{ key }}" type="text" value="" placeholder="{{ settings[key] or t(key) }}">
-        {% else %}
-        <input name="{{ key }}" type="text" value="{{ settings[key] or '' }}" placeholder="{{ t(key) }}">
-        {% endif %}
-      </label>
-      {% endif %}{% endfor %}
+      <div class="settings-grid">
+        {% for key in keys %}{% if key in fields %}
+        <label class="field">{{ t(key) }}
+          {% if fields[key][0] == "bool" %}
+          <select name="{{ key }}" data-kind="bool">
+            <option value="on" {% if settings[key] %}selected{% endif %}>{{ t("On") }}</option>
+            <option value="off" {% if not settings[key] %}selected{% endif %}>{{ t("Off") }}</option>
+          </select>
+          {% elif fields[key][0] == "select" %}
+          <select name="{{ key }}">
+            {% for choice in fields[key][1] %}
+            <option value="{{ choice }}" {% if settings[key] == choice %}selected{% endif %}>{{ choice }}</option>
+            {% endfor %}
+          </select>
+          {% elif key in masked %}
+          <input name="{{ key }}" type="text" value="" placeholder="{{ settings[key] or t(key) }}">
+          {% else %}
+          <input name="{{ key }}" type="text" value="{{ settings[key] or '' }}" placeholder="{{ t(key) }}">
+          {% endif %}
+        </label>
+        {% endif %}{% endfor %}
+      </div>
     </fieldset>
     {% endfor %}
-    <button class="btn btn-primary" type="submit">{{ t("Save") }}</button>
-    <p id="msg" class="stage" role="status"></p>
+    <div class="save-bar">
+      <button class="btn btn-primary" type="submit">{{ t("Save") }}</button>
+      <p id="msg" class="stage save-msg" role="status"></p>
+    </div>
   </form>
 </section>
 
@@ -42,20 +49,35 @@
 <script>
   document.getElementById("settings-form").addEventListener("submit", async (e) => {
     e.preventDefault();
+    const btn = e.submitter || document.querySelector('#settings-form button[type="submit"]');
     const out = {};
     for (const el of e.target.elements) {
       if (!el.name) continue;
       out[el.name] = el.value;
       if (el.dataset.kind === "bool") out[el.name] = el.value === "on";
     }
-    const resp = await fetch("/api/settings", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ settings: out }),
-    });
     const msg = document.getElementById("msg");
-    msg.textContent = resp.ok ? "Saved successfully." : (await resp.json()).detail || resp.status;
-    if (resp.ok) setTimeout(() => location.reload(), 700);
+    msg.className = "stage save-msg";
+    msg.textContent = "Saving…";
+    if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+    try {
+      const resp = await fetch("/api/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ settings: out }),
+      });
+      if (resp.ok) {
+        msg.className = "stage save-msg save-ok";
+        msg.textContent = "Saved successfully.";
+      } else {
+        msg.className = "stage save-msg save-err";
+        msg.textContent = (await resp.json()).detail || resp.status;
+      }
+    } catch (err) {
+      msg.className = "stage save-msg save-err";
+      msg.textContent = "Save failed: " + err;
+    }
+    if (btn) { btn.disabled = false; btn.textContent = "{{ t('Save') }}"; }
   });
 
   async function loadModels() {

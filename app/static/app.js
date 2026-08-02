@@ -3,17 +3,31 @@ function setSpinner(el, on) {
   if (on) { el.classList.add("spinner"); } else { el.classList.remove("spinner"); }
 }
 
+function autoGrow(el) {
+  if (!el) return;
+  el.style.height = "auto";
+  el.style.height = Math.min(el.scrollHeight, 600) + "px";
+}
+
 function pollJob(jobId, els, everyMs) {
   everyMs = everyMs || 2000;
   els.stage.textContent = "Waiting…";
   setSpinner(els.stage, true);
   const tick = async () => {
-    const resp = await fetch("/api/jobs/" + jobId);
-    const job = await resp.json();
+    let resp, job;
+    try {
+      resp = await fetch("/api/jobs/" + jobId);
+      job = await resp.json();
+    } catch (err) {
+      setSpinner(els.stage, false);
+      els.stage.textContent = "Could not reach the server: " + err;
+      return;
+    }
     els.stage.textContent = job.status === "running" ? (job.stage || "Working…") : job.status;
     if (job.status === "done") {
       const text = (job.result && job.result.text) || "";
       els.textEl.value = text;
+      autoGrow(els.textEl);
       if (job.result && job.result.warning) {
         const w = document.createElement("p");
         w.className = "warn";

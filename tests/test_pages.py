@@ -128,6 +128,17 @@ class PagesTest(DikteTest):
         self.assertIn('name="file_timestamps"', body)
         self.assertIn("data-models", body)
 
+    def test_settings_page_uses_compact_grid_and_save_bar(self):
+        body = self.client.get("/settings").text
+        self.assertIn("settings-grid", body)
+        self.assertIn("save-bar", body)
+        self.assertIn('id="msg"', body)
+
+    def test_result_textareas_auto_grow_in_css(self):
+        css = self.client.get("/static/app.css").text
+        self.assertIn("min-height: 120px", css)
+        self.assertIn("overflow: hidden", css)
+
 
 if __name__ == "__main__":
     unittest.main()

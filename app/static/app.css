@@ -1,22 +1,23 @@
 /* ==============================================================
    Dikte design tokens — Phase B foundation
-   Dark theme · teal primary · orange accent · Inter · 4/8 rhythm
+   Dark slate theme · green accent · Inter · 4/8 rhythm
    ============================================================== */
 
 :root {
-  --color-bg: #0B0F14;
-  --color-bg-elev: #11161D;
-  --color-card: #141B23;
-  --color-border: #232D3A;
-  --color-foreground: #E6EDF3;
-  --color-muted: #93A1B3;
-  --color-primary: #0D9488;
-  --color-primary-hover: #0F766E;
-  --color-primary-soft: #10302C;
-  --color-accent: #EA580C;
-  --color-accent-hover: #C2410C;
-  --color-danger: #DC2626;
-  --color-success: #16A34A;
+  --color-bg: #0F172A;
+  --color-bg-elev: #172033;
+  --color-card: #1E293B;
+  --color-border: #334155;
+  --color-foreground: #F8FAFC;
+  --color-muted: #94A3B8;
+  --color-primary: #38BDF8;
+  --color-primary-hover: #0EA5E9;
+  --color-primary-soft: #0C2436;
+  --color-accent: #22C55E;
+  --color-accent-hover: #16A34A;
+  --color-danger: #EF4444;
+  --color-success: #22C55E;
+  --color-warning: #F59E0B;
   --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
   --space-5: 24px; --space-6: 32px; --space-7: 48px; --space-8: 64px;
   --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -24,12 +25,12 @@
   --text-xs: 0.75rem; --text-sm: 0.875rem; --text-base: 1rem;
   --text-lg: 1.125rem; --text-xl: 1.5rem; --text-2xl: 2rem;
   --radius-sm: 6px; --radius-md: 10px; --radius-lg: 16px;
-  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.4);
-  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.4);
-  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.5);
+  --shadow-sm: 0 1px 2px rgb(0 0 0 / 0.3);
+  --shadow-md: 0 4px 12px rgb(0 0 0 / 0.35);
+  --shadow-lg: 0 12px 32px rgb(0 0 0 / 0.45);
   --duration-fast: 150ms; --duration-med: 250ms; --duration-slow: 400ms;
   --ease: cubic-bezier(0.2, 0, 0, 1);
-  --focus-ring: 0 0 0 3px rgb(13 148 136 / 0.4);
+  --focus-ring: 0 0 0 3px rgb(56 189 248 / 0.35);
 }
 
 /* ---------- base / reset ---------- */
@@ -127,13 +128,40 @@ main { max-width: 900px; margin: 0 auto; padding: var(--space-5) var(--space-4) 
 .meeting-title { font-weight: 600; font-size: var(--text-base); color: var(--color-foreground); }
 .meeting-title:hover { color: var(--color-primary); }
 
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-4);
+}
+.settings-head h1 { margin: 0; }
+
+.save-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+.save-msg { min-height: 1.4em; margin: 0; }
+.save-ok { color: var(--color-success); font-weight: 500; }
+.save-err { color: var(--color-danger); font-weight: 500; }
+
 .settings-section {
-  background: var(--color-card);
+  background: var(--color-bg-elev);
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   padding: var(--space-4);
   margin-bottom: var(--space-4);
 }
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-4);
+}
+.settings-grid .field { margin-bottom: 0; }
+.settings-grid .field > label { font-weight: 500; font-size: var(--text-sm); }
 
 .auth { max-width: 380px; margin: var(--space-8) auto; }
 .auth-card { padding: var(--space-6); }
@@ -206,7 +234,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--color-primary); 
 .btn.primary, .btn-primary { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
 .btn.primary:hover, .btn-primary:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
 .btn.danger, .btn-danger { background: var(--color-danger); border-color: var(--color-danger); color: #fff; }
-.btn.danger:hover, .btn-danger:hover { background: var(--color-accent-hover); border-color: var(--color-accent-hover); }
+.btn.danger:hover, .btn-danger:hover { background: #DC2626; border-color: #DC2626; }
 .btn:disabled { opacity: 0.5; cursor: default; }
 
 .btn-ghost { background: transparent; border-color: transparent; color: var(--color-muted); }
@@ -237,7 +265,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--color-primary); 
 
 .stage { min-height: 1.4em; color: var(--color-muted); }
 .error { color: var(--color-danger); }
-.warn { color: var(--color-accent); }
+.warn { color: var(--color-warning); }
 .muted { color: var(--color-muted); }
 
 .meter { margin: var(--space-2) 0 var(--space-4); }
@@ -248,7 +276,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--color-primary); 
   border-radius: var(--radius-sm);
 }
 
-.result textarea { font-family: var(--font-mono); }
+.result textarea { font-family: var(--font-mono); min-height: 120px; resize: none; overflow: hidden; }
 
 /* ---------- tables ---------- */
 
@@ -260,10 +288,10 @@ input:focus, textarea:focus, select:focus { border-color: var(--color-primary); 
 /* ---------- badges ---------- */
 
 .badge { display: inline-block; padding: var(--space-1) var(--space-2); border-radius: 999px; font-size: var(--text-xs); font-weight: 600; }
-.status-done { background: #1d3a28; color: #6ee7a0; }
-.status-recorded { background: #3a2f1d; color: #f5c97a; }
-.status-failed { background: #3a1d1d; color: #f08a8e; }
-.status-transcribed { background: #1d2c3a; color: #7ab8f5; }
+.status-done { background: rgb(34 197 94 / 0.15); color: #4ADE80; }
+.status-recorded { background: rgb(245 158 11 / 0.15); color: #FBBF24; }
+.status-failed { background: rgb(239 68 68 / 0.15); color: #F87171; }
+.status-transcribed { background: rgb(56 189 248 / 0.15); color: #38BDF8; }
 
 /* ---------- minutes / meta ---------- */
 
@@ -300,9 +328,9 @@ input:focus, textarea:focus, select:focus { border-color: var(--color-primary); 
 .record-btn.recording, .rec-pulse { animation: rec-pulse 1.6s var(--ease) infinite; }
 
 @keyframes rec-pulse {
-  0%   { box-shadow: 0 0 0 0 rgb(220 38 38 / 0.5); }
-  70%  { box-shadow: 0 0 0 18px rgb(220 38 38 / 0); }
-  100% { box-shadow: 0 0 0 0 rgb(220 38 38 / 0); }
+  0%   { box-shadow: 0 0 0 0 rgb(239 68 68 / 0.5); }
+  70%  { box-shadow: 0 0 0 18px rgb(239 68 68 / 0); }
+  100% { box-shadow: 0 0 0 0 rgb(239 68 68 / 0); }
 }
 
 /* ---------- dropzone / upload ---------- */
@@ -345,7 +373,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--color-primary); 
   position: absolute;
   inset: 0;
   transform: translateX(-100%);
-  background: linear-gradient(90deg, transparent, rgb(230 237 243 / 0.06), transparent);
+  background: linear-gradient(90deg, transparent, rgb(248 250 252 / 0.06), transparent);
   animation: skeleton-shimmer var(--duration-slow) var(--ease) infinite;
 }
 @keyframes skeleton-shimmer { 100% { transform: translateX(100%); } }
