@@ -1,0 +1,67 @@
+"""Tek şifre login: imzalı, httponly session cookie.
+
+Şifre DIKTE_WEB_PASSWORD env'inden gelir. Boşsa ilk çalıştırmada üretilir,
+data dizinine (web_password) yazılır ve stderr'e basılır. Cookie, per-process
+bir pepper ile HMAC imzalıdır.
+"""
+
+import hashlib
+import hmac
+import os
+import secrets
+import sys
+import time
+
+import config as cfg
+
+COOKIE = "dikte_session"
+SESSION_HOURS = 24 * 7
+_pepper = secrets.token_bytes(32)
+
+
+def password():
+    stored = os.environ.get("DIKTE_WEB_PASSWORD", "").strip()
+    if stored:
+        return stored
+    try:
+        saved = (cfg.DATA_DIR / "web_password").read_text().strip()
+        if saved:
+            return saved
+    except OSError:
+        pass
+    generated = secrets.token_urlsafe(9)
+    try:
+        cfg.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        (cfg.DATA_DIR / "web_password").write_text(generated)
+        print(f"dikte-web: DIKTE_WEB_PASSWORD unset; generated password: "
+              f"{generated} (stored in {cfg.DATA_DIR / 'web_password'})",
+              file=sys.stderr)
+    except OSError:
+        print("dikte-web: no password configured and could not store one", file=sys.stderr)
+    return generated
+
+
+def _sig(value):
+    return hmac.new(_pepper, value.encode(), hashlib.sha256).hexdigest()
+
+
+def new_session() -> str:
+    value = f"{time.time()}.{secrets.token_urlsafe(16)}"
+    return f"{value}.{_sig(value)}"
+
+
+def check(token) -> bool:
+    """Cookie geçerli mi? (imza + süre)"""
+    if not token:
+        return False
+    try:
+        value, sig = token.rsplit(".", 1)
+    except ValueError:
+        return False
+    if not hmac.compare_digest(_sig(value), sig):
+        return False
+    try:
+        ts = float(value.split(".", 1)[0])
+    except ValueError:
+        return False
+    return time.time() - ts < SESSION_HOURS * 3600
