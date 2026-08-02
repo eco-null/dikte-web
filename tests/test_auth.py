@@ -41,6 +41,23 @@ class Auth(DikteTest):
         old = f"{float(value.split('.', 1)[0]) - 8 * 24 * 3600}.{value.split('.', 1)[1]}.{sig}"
         self.assertFalse(auth.check(old))
 
+    def test_a_token_with_no_separator_is_rejected(self):
+        self.assertFalse(auth.check("justgarbage"))
+
+    def test_a_token_with_too_few_parts_is_rejected(self):
+        self.assertFalse(auth.check("12345.onlytimestamp"))
+
+    def test_a_token_with_a_bad_signature_is_rejected(self):
+        token = auth.new_session()
+        value, sig = token.rsplit(".", 1)
+        wrong = f"{value}.{'0' * len(sig)}"
+        self.assertFalse(auth.check(wrong))
+
+    def test_a_non_numeric_timestamp_is_rejected(self):
+        value, sig = auth.new_session().rsplit(".", 1)
+        bogus = f"not-a-number.{value.split('.', 1)[1]}.{sig}"
+        self.assertFalse(auth.check(bogus))
+
 
 if __name__ == "__main__":
     unittest.main()
