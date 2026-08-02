@@ -89,5 +89,11 @@ class PagesTest(DikteTest):
         self.assertIn("auth-card", body)
 
 
+    def test_files_page_has_dropzone_and_downloads(self):
+        body = self.client.get("/files").text
+        for marker in ("dropzone", "data-download", 'data-fmt="srt"'):
+            self.assertIn(marker, body)
+
+
 if __name__ == "__main__":
     unittest.main()
