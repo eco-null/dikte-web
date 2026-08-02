@@ -61,6 +61,12 @@ class PagesTest(DikteTest):
         self.assertIn('data-download', body)
         self.assertIn('data-fmt="txt"', body)
 
+    def test_dictation_page_has_record_controls(self):
+        body = self.client.get("/dictate").text
+        for marker in ('id="record"', "data-copy", "data-download", 'id="meter"'):
+            self.assertIn(marker, body)
+        self.assertIn('class="record-btn"', body)
+
     def test_css_carries_design_tokens(self):
         css = self.client.get("/static/app.css").text
         for token in ("--color-primary", "--color-accent", "--space-1",

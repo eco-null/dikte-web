@@ -16,6 +16,7 @@
     btnRecord.disabled = busy;
     btnStop.disabled = !busy;
     btnCancel.disabled = !busy;
+    btnRecord.classList.toggle("recording", busy);
   }
   function draw() {
     if (!ctx2 || !analyser) return;

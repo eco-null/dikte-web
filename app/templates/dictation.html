@@ -1,14 +1,16 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card">
+<section class="card dictate">
   <h1>{{ t("Dictation") }}</h1>
-  <div class="meter"><canvas id="meter" width="480" height="48"></canvas></div>
-  <div class="actions">
-    <button id="record" class="btn primary">{{ t("Record") }}</button>
+  <div class="meter"><canvas id="meter" width="480" height="48" aria-hidden="true"></canvas></div>
+  <div class="record-actions">
+    <button id="record" class="record-btn" aria-label="{{ t('Record') }}">
+      <svg class="icon" viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true"><circle cx="12" cy="12" r="6"/></svg>
+    </button>
     <button id="stop" class="btn" disabled>{{ t("Stop") }}</button>
-    <button id="cancel" class="btn" disabled>{{ t("Cancel") }}</button>
+    <button id="cancel" class="btn btn-ghost" disabled>{{ t("Cancel") }}</button>
   </div>
-  <p id="stage" class="stage"></p>
+  <p id="stage" class="stage" role="status"></p>
   <div id="result" class="result" hidden>
     <textarea id="text" readonly rows="10"></textarea>
     <div class="row">
