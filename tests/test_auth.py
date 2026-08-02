@@ -55,7 +55,8 @@ class Auth(DikteTest):
 
     def test_a_non_numeric_timestamp_is_rejected(self):
         value, sig = auth.new_session().rsplit(".", 1)
-        bogus = f"not-a-number.{value.split('.', 1)[1]}.{sig}"
+        bogus_value = f"not-a-number.{value.split('.', 1)[1]}"
+        bogus = f"{bogus_value}.{auth._sig(bogus_value)}"
         self.assertFalse(auth.check(bogus))
 
 
