@@ -32,6 +32,17 @@ original desktop codebase is preserved on the `upstream-dikte` branch.
 - **Settings** — all transcription, cleanup, meeting and assistant options live
   in the web UI. API keys are masked and only ever replaced, never shown.
 
+## Interface
+
+- **Modern dark interface** — teal/orange accent palette and Inter typography.
+- **Keyboard navigation** — every control has a visible focus ring; the UI
+  also honors `prefers-reduced-motion`, toning down animations for users who
+  ask for it.
+- **Sectioned Settings** — transcription, cleanup, local models, meetings and
+  assistant options are grouped into sections, plus a **Models** manager for
+  installing the whisper.cpp / llama.cpp binaries and model files right from
+  the UI.
+
 ## Language support
 
 The interface ships in **English and Turkish**. Set `ui_language` to `auto`,

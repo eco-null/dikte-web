@@ -32,6 +32,17 @@ arayüzü burada bir web arayüzüyle değiştirilmiştir. Orijinal masaüstü k
   arayüzünde. API anahtarları maskelenir, yalnızca değiştirilir, asla
   gösterilmez.
 
+## Arayüz
+
+- **Modern koyu arayüz** — turkuaz/turuncu vurgu paleti ve Inter tipografisi.
+- **Klavye navigasyonu** — her kontrolün görünür bir odak halkası vardır;
+  arayüz `prefers-reduced-motion` özelliğini de destekler, isteyenler için
+  animasyonları yatıştırır.
+- **Bölümlü Ayarlar** — transkripsiyon, temizleme, yerel modeller, toplantılar
+  ve ajan seçenekleri bölümlere ayrılmıştır; ayrıca whisper.cpp / llama.cpp
+  ikili dosyalarını ve model dosyalarını doğrudan arayüzden kuran bir
+  **Modeller** yöneticisi vardır.
+
 ## Dil desteği
 
 Arayüz **İngilizce ve Türkçe** gelir. Ayarlar'dan `ui_language` değerini
