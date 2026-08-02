@@ -131,6 +131,9 @@ main { max-width: 900px; margin: 0 auto; padding: var(--space-5) var(--space-4) 
 }
 
 .auth { max-width: 380px; margin: var(--space-8) auto; }
+.auth-card { padding: var(--space-6); }
+.auth-brand { display: flex; align-items: center; justify-content: center; gap: var(--space-3); margin-bottom: var(--space-3); }
+.auth-brand h1 { margin: 0; }
 
 /* ---------- forms ---------- */
 
@@ -195,8 +198,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--color-primary); 
               box-shadow var(--duration-fast) var(--ease);
 }
 .btn:hover { background: var(--color-card); border-color: var(--color-muted); }
-.btn.primary { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
-.btn.primary:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
+.btn.primary, .btn-primary { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+.btn.primary:hover, .btn-primary:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
 .btn.danger { background: var(--color-danger); border-color: var(--color-danger); color: #fff; }
 .btn.danger:hover { background: var(--color-accent-hover); border-color: var(--color-accent-hover); }
 .btn:disabled { opacity: 0.5; cursor: default; }

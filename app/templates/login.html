@@ -1,13 +1,19 @@
 {% extends "base.html" %}
 {% block content %}
-<section class="card auth">
-  <h1>Dikte</h1>
-  <form method="post" action="/login">
-    <label>{{ t("Password") }}
-      <input type="password" name="password" autofocus required>
-    </label>
-    {% if error %}<p class="error">{{ error }}</p>{% endif %}
-    <button class="btn primary" type="submit">{{ t("Log in") }}</button>
-  </form>
+<section class="auth">
+  <div class="card auth-card">
+    <div class="auth-brand">
+      <svg class="icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 1a3 3 0 0 1 3 3v8a3 3 0 0 1-6 0V4a3 3 0 0 1 3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+      <h1>Dikte</h1>
+    </div>
+    <p class="muted">{{ t("Sign in to continue") }}</p>
+    <form method="post" action="/login" class="stack">
+      <label class="field">{{ t("Password") }}
+        <input type="password" name="password" autofocus required autocomplete="current-password">
+      </label>
+      {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+      <button class="btn btn-primary btn-block" type="submit">{{ t("Log in") }}</button>
+    </form>
+  </div>
 </section>
 {% endblock %}

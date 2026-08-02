@@ -73,6 +73,15 @@ class PagesTest(DikteTest):
         for emoji in ("\U0001F3A4", "\U0001F4C1", "\U0001F4CB", "\u2699\uFE0F"):
             self.assertNotIn(emoji, body)
 
+    def test_login_page_has_auth_card(self):
+        self.client.cookies.clear()
+        resp = self.client.get("/login")
+        body = resp.text
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('action="/login"', body)
+        self.assertIn('name="password"', body)
+        self.assertIn("auth-card", body)
+
 
 if __name__ == "__main__":
     unittest.main()

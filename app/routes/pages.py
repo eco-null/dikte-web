@@ -12,8 +12,10 @@ router = APIRouter()
 
 
 def _render(request, template, context=None):
+    ctx = dict(context or {})
+    ctx.setdefault("current_path", request.url.path)
     return request.app.state.templates.TemplateResponse(
-        request, template, context or {})
+        request, template, ctx)
 
 
 @router.get("/")
