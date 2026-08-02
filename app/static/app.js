@@ -38,6 +38,6 @@ document.addEventListener("click", (e) => {
   }
   const dl = e.target.closest("[data-download]");
   if (dl) {
-    window.location.href = "/api/jobs/" + dl.dataset.jobId + "/download?format=" + (dl.dataset.fmt || "txt");
+    window.location.href = "/api/jobs/" + dl.dataset.jobId + "/download?fmt=" + (dl.dataset.fmt || "txt");
   }
 });
