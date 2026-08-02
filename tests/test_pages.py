@@ -67,6 +67,12 @@ class PagesTest(DikteTest):
                       "--radius-md", "--font-sans", "--duration-fast"):
             self.assertIn(token, css)
 
+    def test_nav_uses_svg_icons_not_emoji(self):
+        body = self.client.get("/dictate").text
+        self.assertIn("<svg", body)
+        for emoji in ("\U0001F3A4", "\U0001F4C1", "\U0001F4CB", "\u2699\uFE0F"):
+            self.assertNotIn(emoji, body)
+
 
 if __name__ == "__main__":
     unittest.main()
