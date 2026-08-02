@@ -1,10 +1,14 @@
-"""From a two-channel meeting recording to a set of minutes.
+"""From a two-channel meeting recording to a set of minutes. (webapp)
 
 The recording arrives with your microphone on the left channel and everything
 the other participants said on the right, so attribution is settled before any
 model sees the audio: each channel is transcribed on its own, and the two are
 then interleaved on one timeline. What a model is asked for is only what models
 are good at, turning the words into readable prose and then into minutes.
+
+A mono upload has no channel separation: everything lands on "the others" and
+the microphone side stays silent, so the silence check skips it without an API
+call.
 
 Every stage the run reaches is written to disk, so a failure in the last one
 does not cost the transcription of an hour of audio.
@@ -18,18 +22,17 @@ import re
 import shutil
 import subprocess
 import tempfile
-import threading
 import time
 import wave
 
-from PyQt6.QtCore import QObject, pyqtSignal
+from .signals import Signal
 
 import api
 import cleanup
 import config as cfg
 import filetranscribe
 import vad
-from filetranscribe import Cancelled, format_timestamp
+from filetranscribe import format_timestamp
 from i18n import t
 
 # Where the document stops being prose and starts being the transcript. It is a
@@ -52,48 +55,23 @@ TURN_GAP = 8.0
 LEVEL_FRAMES = 1024
 
 
-class MeetingPipeline(QObject):
+class MeetingPipeline:
     """Transcribe, clean up and summarise a recorded meeting."""
 
-    progress = pyqtSignal(str, str)     # base, message
-    finished = pyqtSignal(str, str)     # base, title
-    failed = pyqtSignal(str, str)       # base, error
+    progress = Signal()     # (base, message)
 
-    def __init__(self, conf, parent=None):
-        super().__init__(parent)
+    def __init__(self, conf):
         self.conf = conf
-        self._thread = None
-        self._stop = threading.Event()
-        self._base = ""
-
-    @property
-    def busy(self):
-        return self._thread is not None and self._thread.is_alive()
-
-    @property
-    def running_base(self):
-        return self._base if self.busy else ""
 
     def run(self, entry):
-        """Take a meeting row onwards from wherever it stopped."""
-        if self.busy:
-            return False
-        self._stop.clear()
-        self._base = entry.get("base", "")
-        self._thread = threading.Thread(target=self._work, args=(dict(entry),),
-                                        daemon=True)
-        self._thread.start()
-        return True
+        """Kaydı sonuna kadar çağıran thread'de işler; title döndürür.
 
-    def stop(self):
-        self._stop.set()
-
-    def _check(self):
-        if self._stop.is_set():
-            raise Cancelled
+        Hata durumunda cfg row'u 'failed' yapılır ve api.ApiError fırlatılır.
+        """
+        return self._work(dict(entry))
 
     def _say(self, message):
-        self.progress.emit(self._base, message)
+        self.progress.emit("", message)
 
     # ---- the chain -------------------------------------------------------
 
@@ -109,7 +87,6 @@ class MeetingPipeline(QObject):
                 workdir = tempfile.mkdtemp(prefix="dikte-meeting-")
                 transcript = self._transcribe(str(wav_path), workdir)
                 if self.conf["meeting_cleanup"]:
-                    self._check()
                     self._say(t("Cleaning up…"))
                     transcript = self._cleanup(transcript)
                 # On disk before the summary is attempted: if the summary fails,
@@ -117,7 +94,6 @@ class MeetingPipeline(QObject):
                 self._write(doc_path, "", transcript, entry)
                 cfg.update_meeting(base, status="transcribed", error="")
 
-            self._check()
             self._say(t("Writing the minutes…"))
             minutes = api.cleanup(
                 transcript,
@@ -132,16 +108,13 @@ class MeetingPipeline(QObject):
             cfg.update_meeting(base, status="done", error="", title=title,
                                model=self.conf["meeting_model"])
             self._discard_audio(wav_path)
-            self.finished.emit(base, title)
+            return title
 
-        except Cancelled:
-            cfg.update_meeting(base, error=t("Stopped."))
-            self._say(t("Stopped."))
         except (api.ApiError, OSError, subprocess.SubprocessError, wave.Error) as exc:
             # The audio stays put no matter what the keep setting says: it is the
             # only copy of the meeting, and the run can be tried again from it.
             cfg.update_meeting(base, status="failed", error=str(exc))
-            self.failed.emit(base, str(exc))
+            raise
         finally:
             if workdir:
                 shutil.rmtree(workdir, ignore_errors=True)
@@ -172,7 +145,6 @@ class MeetingPipeline(QObject):
             chunks = filetranscribe.split_wav(path, chunk_dir)
             heard = []
             for index, (chunk_path, offset) in enumerate(chunks, start=1):
-                self._check()
                 self._say(t("Transcribing {side}: {index}/{count}…",
                             side=side, index=index, count=len(chunks)))
                 # Nobody spoke on this side for these ten minutes: an API call
@@ -209,7 +181,6 @@ class MeetingPipeline(QObject):
         out = []
         blocks = filetranscribe.split_text(transcript, True)
         for index, block in enumerate(blocks, start=1):
-            self._check()
             if len(blocks) > 1:
                 self._say(t("Cleaning up {index}/{count}…",
                             index=index, count=len(blocks)))
@@ -241,9 +212,14 @@ class MeetingPipeline(QObject):
 # --- audio ----------------------------------------------------------------
 
 def split_channels(path, workdir):
-    """Pull the stereo recording apart into (mine, theirs) mono files."""
+    """Kaydı (mine, theirs) mono dosyalara ayırır.
+
+    Mono dosyada kanal ayrımı yoktur: tümü "theirs" olur, mikrofon kanalı
+    sessiz bırakılır (silence check o tarafı API maliyeti olmadan atlar).
+    """
     with contextlib.closing(wave.open(path, "rb")) as src:
-        if src.getnchannels() != 2 or src.getsampwidth() != 2:
+        channels = src.getnchannels()
+        if channels not in (1, 2) or src.getsampwidth() != 2:
             raise api.ApiError(t("This recording is not a two-channel meeting."))
         rate = src.getframerate()
         mine = os.path.join(workdir, "mine.wav")
@@ -254,14 +230,23 @@ def split_channels(path, workdir):
                 out.setnchannels(1)
                 out.setsampwidth(2)
                 out.setframerate(rate)
-            while True:
-                frames = src.readframes(rate)  # a second at a time
-                if not frames:
-                    break
-                samples = array.array("h")
-                samples.frombytes(frames)
-                left.writeframes(samples[0::2].tobytes())
-                right.writeframes(samples[1::2].tobytes())
+            if channels == 1:
+                # mikrofon yok: bir saniyelik sessizlik
+                left.writeframes(b"\x00\x00" * rate)
+                while True:
+                    frames = src.readframes(rate)
+                    if not frames:
+                        break
+                    right.writeframes(frames)
+            else:
+                while True:
+                    frames = src.readframes(rate)
+                    if not frames:
+                        break
+                    samples = array.array("h")
+                    samples.frombytes(frames)
+                    left.writeframes(samples[0::2].tobytes())
+                    right.writeframes(samples[1::2].tobytes())
     return mine, theirs
 
 
