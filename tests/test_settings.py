@@ -63,6 +63,20 @@ class Settings(DikteTest):
         web.apply(conf, {"silence_db": "not-a-number"})
         self.assertEqual(conf["silence_db"], -40.0)
 
+    def test_web_fields_include_the_local_surface(self):
+        for key in ("transcribe_provider", "cleanup_provider", "local_model",
+                    "local_threads", "local_gpu", "local_preload",
+                    "local_llm_model", "local_llm_context",
+                    "mic_target", "keep_audio", "file_timestamps",
+                    "file_cleanup", "meeting_max_seconds"):
+            self.assertIn(key, web.WEB_FIELDS)
+
+    def test_transcribe_provider_offers_local(self):
+        self.assertIn("local", web.WEB_FIELDS["transcribe_provider"][1])
+
+    def test_cleanup_provider_offers_local_llm(self):
+        self.assertIn("local-llm", web.WEB_FIELDS["cleanup_provider"][1])
+
 
 if __name__ == "__main__":
     unittest.main()
