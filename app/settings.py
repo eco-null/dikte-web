@@ -50,10 +50,20 @@ def _coerce(key, raw):
         return str(raw).lower() in ("1", "true", "on", "yes")
     if kind == "int":
         text = str(raw).strip()
-        return int(text) if text else None
+        if not text:
+            return None
+        try:
+            return int(text)
+        except ValueError:
+            return None
     if kind == "float":
         text = str(raw).strip()
-        return float(text) if text else None
+        if not text:
+            return None
+        try:
+            return float(text)
+        except ValueError:
+            return None
     return str(raw).strip()
 
 
