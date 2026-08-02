@@ -11,6 +11,7 @@ import api
 import assistant
 import config as cfg
 import filetranscribe as ft
+import ggml
 import meeting
 import vad
 import worker
@@ -57,6 +58,98 @@ def _start(request, kind, work, cleanup=None):
             cleanup()
         raise HTTPException(409, detail="A job is already running.")
     return {"job_id": job_id}
+
+
+def _pct(done, total):
+    if not total:
+        return "?"
+    return f"{int(done * 100 / total)}%"
+
+
+@router.get("/api/models")
+def list_models(request: Request):
+    whisper, llm = [], []
+    whisper_error, llm_error = "", ""
+    try:
+        whisper = [{"name": m.name, "size": m.size, "url": m.url,
+                    "installed": m.name in ggml.installed_whisper_models()}
+                   for m in ggml.whisper_models()]
+    except Exception as exc:
+        whisper_error = str(exc)
+    try:
+        llm = [{"repo": r,
+                "quants": [{"name": q.name, "size": q.size, "url": q.url,
+                            "installed": q.name in ggml.installed_llm_models()}
+                           for q in ggml.llm_quants(r)]}
+               for r in ggml.llm_repos()]
+    except Exception as exc:
+        llm_error = str(exc)
+    programs = [{"name": p.name,
+                 "installed": bool(ggml.installed_program(p)),
+                 "version": ggml.installed_version(p),
+                 "system": ggml.system_program(p)}
+                for p in (ggml.WHISPER, ggml.LLAMA)]
+    out = {"whisper_models": whisper, "llm": llm, "programs": programs}
+    if whisper_error:
+        out["whisper_error"] = whisper_error
+    if llm_error:
+        out["llm_error"] = llm_error
+    return out
+
+
+@router.post("/api/models/install")
+def install_model(request: Request, payload: dict = Body(...)):
+    kind = str(payload.get("kind") or "")
+    name = str(payload.get("name") or "")
+    repo = str(payload.get("repo") or "")
+    conf = _conf(request)
+
+    def work(emit):
+        if kind == "program":
+            program = ggml.WHISPER if name == "whisper" else ggml.LLAMA
+            emit("Looking up the release…")
+            path = ggml.install_program(
+                program,
+                on_progress=lambda done, total:
+                    emit(f"Downloading… {_pct(done, total)}"))
+            return {"path": path}
+        if kind == "whisper":
+            item = next((m for m in ggml.whisper_models() if m.name == name), None)
+            if item is None:
+                raise HTTPException(404, detail="no such whisper model")
+            target = ggml.whisper_model_path(name)
+            ok = ggml.download(item, target,
+                               on_progress=lambda done, total:
+                                   emit(f"Downloading… {_pct(done, total)}"))
+            if ok:
+                conf["local_model"] = name
+            return {"path": str(target), "installed": ok}
+        if kind == "llm":
+            item = next((q for q in ggml.llm_quants(repo) if q.name == name), None)
+            if item is None:
+                raise HTTPException(404, detail="no such model")
+            target = ggml.llm_model_path(name)
+            ok = ggml.download(item, target,
+                               on_progress=lambda done, total:
+                                   emit(f"Downloading… {_pct(done, total)}"))
+            if ok:
+                conf["local_llm_model"] = name
+            return {"path": str(target), "installed": ok}
+        raise HTTPException(400, detail="unknown kind")
+
+    return _start(request, "model", work)
+
+
+@router.post("/api/models/delete")
+def delete_model_route(request: Request, payload: dict = Body(...)):
+    path = str(payload.get("path") or "")
+    if not path:
+        raise HTTPException(400, detail="no path")
+    try:
+        ggml.delete_model(path)
+    except ggml.LocalError as exc:
+        raise HTTPException(400, detail=str(exc))
+    return {"deleted": True}
 
 
 @router.get("/api/jobs/{job_id}")
