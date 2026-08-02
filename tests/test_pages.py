@@ -61,6 +61,12 @@ class PagesTest(DikteTest):
         self.assertIn('data-download', body)
         self.assertIn('data-fmt="txt"', body)
 
+    def test_css_carries_design_tokens(self):
+        css = self.client.get("/static/app.css").text
+        for token in ("--color-primary", "--color-accent", "--space-1",
+                      "--radius-md", "--font-sans", "--duration-fast"):
+            self.assertIn(token, css)
+
 
 if __name__ == "__main__":
     unittest.main()
