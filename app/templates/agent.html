@@ -2,32 +2,51 @@
 {% block content %}
 <section class="card">
   <h1>{{ t("Agent") }}</h1>
-  <form id="agent-form">
-    <label>{{ t("Question") }} <textarea name="question" rows="3" required></textarea></label>
+  <div class="chat" id="chat" aria-live="polite"></div>
+  <form id="agent-form" class="stack">
+    <label class="field">{{ t("Question") }}
+      <textarea name="question" rows="3" required></textarea>
+    </label>
     <div class="row">
-      <label>{{ t("Provider") }}
+      <label class="field">{{ t("Provider") }}
         <select name="provider">
           <option value="">{{ t("Model's own default") }}</option>
           <option value="openrouter">OpenRouter</option>
           <option value="omniroute">OmniRoute</option>
         </select>
       </label>
-      <label>{{ t("Model") }} <input name="model" placeholder="optional"></label>
+      <label class="field">{{ t("Model") }} <input name="model" placeholder="optional"></label>
     </div>
-    <button class="btn primary" type="submit">{{ t("Ask") }}</button>
+    <div class="row">
+      <button class="btn btn-primary" type="submit">{{ t("Ask") }}</button>
+      <button class="btn" type="button" data-copy data-target="#chat">{{ t("Copy") }}</button>
+    </div>
   </form>
-  <p id="stage" class="stage"></p>
-  <div id="answer" class="result" hidden>
-    <h2>{{ t("Answer") }}</h2>
-    <textarea id="answer-text" readonly rows="8"></textarea>
-    <button class="btn" data-copy data-target="#answer-text">{{ t("Copy") }}</button>
-  </div>
+  <p id="stage" class="stage" role="status"></p>
 </section>
 <script>
+  function addBubble(text, cls) {
+    const b = document.createElement("div");
+    b.className = "chat-bubble " + cls;
+    b.id = "bubble-" + Math.random().toString(36).slice(2, 9);
+    b.textContent = text;
+    if (cls === "bubble-assistant") {
+      const copyBtn = document.createElement("button");
+      copyBtn.className = "btn btn-sm";
+      copyBtn.type = "button";
+      copyBtn.dataset.copy = "";
+      copyBtn.dataset.target = "#" + b.id;
+      copyBtn.textContent = "{{ t("Copy") }}";
+      b.appendChild(copyBtn);
+    }
+    document.getElementById("chat").appendChild(b);
+  }
   document.getElementById("agent-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const stage = document.getElementById("stage");
-    const answer = document.getElementById("answer");
+    const question = e.target.elements.question.value.trim();
+    if (!question) return;
+    addBubble(question, "bubble-user");
     stage.textContent = "Thinking…";
     const resp = await fetch("/api/agent", {
       method: "POST",
@@ -36,8 +55,7 @@
     });
     const data = await resp.json();
     if (!resp.ok) { stage.textContent = data.detail || resp.status; return; }
-    document.getElementById("answer-text").value = data.answer;
-    answer.hidden = false;
+    addBubble(data.answer, "bubble-assistant");
     stage.textContent = "";
   });
 </script>

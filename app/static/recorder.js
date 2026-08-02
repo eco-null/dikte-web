@@ -26,7 +26,7 @@
     for (const v of data) { const d = v - 128; sum += d * d; }
     const level = Math.min(1, Math.sqrt(sum / data.length) / 128);
     ctx2.clearRect(0, 0, canvas.width, canvas.height);
-    ctx2.fillStyle = "var(--accent)";
+    ctx2.fillStyle = "var(--color-accent)";
     ctx2.fillRect(0, canvas.height * (1 - level), canvas.width * level, canvas.height);
     raf = requestAnimationFrame(draw);
   }

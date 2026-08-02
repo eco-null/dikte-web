@@ -1,6 +1,12 @@
+function setSpinner(el, on) {
+  if (!el) return;
+  if (on) { el.classList.add("spinner"); } else { el.classList.remove("spinner"); }
+}
+
 function pollJob(jobId, els, everyMs) {
   everyMs = everyMs || 2000;
   els.stage.textContent = "Waiting…";
+  setSpinner(els.stage, true);
   const tick = async () => {
     const resp = await fetch("/api/jobs/" + jobId);
     const job = await resp.json();
@@ -16,10 +22,12 @@ function pollJob(jobId, els, everyMs) {
       }
       els.resultBox.hidden = false;
       els.stage.textContent = "";
+      setSpinner(els.stage, false);
       return;
     }
     if (job.status === "failed") {
       els.stage.textContent = job.error || "Failed";
+      setSpinner(els.stage, false);
       return;
     }
     setTimeout(tick, everyMs);
