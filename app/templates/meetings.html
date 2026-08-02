@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>{{ t("Meeting minutes") }}</h1>
+  <form id="meet-form">
+    <label>{{ t("File") }} <input type="file" name="file" accept="audio/*,video/*" required></label>
+    <label>{{ t("Participants") }} <textarea name="participants" rows="2" placeholder="{{ t('One name per line') }}"></textarea></label>
+    <button class="btn primary" type="submit">{{ t("Upload") }}</button>
+  </form>
+  <p id="stage" class="stage"></p>
+</section>
+<section class="card">
+  <h2>{{ t("History") }}</h2>
+  <table class="table">
+    <thead><tr><th>{{ t("Transcript") }}</th><th>{{ t("Model") }}</th><th>{{ t("Status") }}</th><th></th></tr></thead>
+    <tbody>
+      {% for m in meetings %}
+      <tr>
+        <td><a href="/meetings/{{ m.base }}">{{ m.title or m.ts }}</a></td>
+        <td>{{ m.model }}</td>
+        <td class="badge status-{{ m.status }}">{{ m.status }}</td>
+        <td class="row">
+          {% if m.status in ('recorded','failed') %}
+          <button class="btn" data-retry="{{ m.base }}">{{ t("Retry") }}</button>
+          {% endif %}
+          <button class="btn danger" data-del="{{ m.base }}">{{ t("Delete") }}</button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+<script>
+  const stage = document.getElementById("stage");
+  document.getElementById("meet-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    stage.textContent = "Uploading…";
+    const resp = await fetch("/api/meetings", { method: "POST", body: fd });
+    if (resp.status === 409) { stage.textContent = "Busy, one job at a time"; return; }
+    if (!resp.ok) { stage.textContent = (await resp.json()).detail || resp.status; return; }
+    const { job_id } = await resp.json();
+    const tick = async () => {
+      const job = await (await fetch("/api/jobs/" + job_id)).json();
+      stage.textContent = job.status === "running" ? (job.stage || "Working…") : job.status;
+      if (job.status === "done" || job.status === "failed") { location.reload(); return; }
+      setTimeout(tick, 2000);
+    };
+    tick();
+  });
+  document.addEventListener("click", async (e) => {
+    const retry = e.target.closest("[data-retry]");
+    if (retry) {
+      stage.textContent = "Working…";
+      await fetch("/api/meetings/" + retry.dataset.retry + "/retry", { method: "POST" });
+      location.reload();
+    }
+    const del = e.target.closest("[data-del]");
+    if (del) {
+      await fetch("/api/meetings/" + del.dataset.del, { method: "DELETE" });
+      location.reload();
+    }
+  });
+</script>
+{% endblock %}

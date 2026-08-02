@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="{{ t('auto') }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Dikte{% endblock %}</title>
+  <link rel="stylesheet" href="/static/app.css">
+  <script src="/static/htmx.min.js" defer></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/dictate">Dikte</a>
+    <nav>
+      <a href="/dictate">{{ t("Dictation") }}</a>
+      <a href="/files">{{ t("Files") }}</a>
+      <a href="/meetings">{{ t("Minutes") }}</a>
+      <a href="/agent">{{ t("Agent") }}</a>
+      <a href="/history">{{ t("History") }}</a>
+      <a href="/settings">{{ t("Settings") }}</a>
+      <a href="/logout">{{ t("Log out") }}</a>
+    </nav>
+  </header>
+  <main>{% block content %}{% endblock %}</main>
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>{{ t("Agent") }}</h1>
+  <form id="agent-form">
+    <label>{{ t("Question") }} <textarea name="question" rows="3" required></textarea></label>
+    <div class="row">
+      <label>{{ t("Provider") }}
+        <select name="provider">
+          <option value="">{{ t("Model's own default") }}</option>
+          <option value="openrouter">OpenRouter</option>
+          <option value="omniroute">OmniRoute</option>
+        </select>
+      </label>
+      <label>{{ t("Model") }} <input name="model" placeholder="optional"></label>
+    </div>
+    <button class="btn primary" type="submit">{{ t("Ask") }}</button>
+  </form>
+  <p id="stage" class="stage"></p>
+  <div id="answer" class="result" hidden>
+    <h2>{{ t("Answer") }}</h2>
+    <textarea id="answer-text" readonly rows="8"></textarea>
+    <button class="btn" data-copy data-target="#answer-text">{{ t("Copy") }}</button>
+  </div>
+</section>
+<script>
+  document.getElementById("agent-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const stage = document.getElementById("stage");
+    const answer = document.getElementById("answer");
+    stage.textContent = "Thinking…";
+    const resp = await fetch("/api/agent", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(Object.fromEntries(new FormData(e.target))),
+    });
+    const data = await resp.json();
+    if (!resp.ok) { stage.textContent = data.detail || resp.status; return; }
+    document.getElementById("answer-text").value = data.answer;
+    answer.hidden = false;
+    stage.textContent = "";
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card auth">
+  <h1>Dikte</h1>
+  <form method="post" action="/login">
+    <label>{{ t("Password") }}
+      <input type="password" name="password" autofocus required>
+    </label>
+    {% if error %}<p class="error">{{ error }}</p>{% endif %}
+    <button class="btn primary" type="submit">{{ t("Log in") }}</button>
+  </form>
+</section>
+{% endblock %}

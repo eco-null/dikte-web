@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>{{ t("Dictation") }}</h1>
+  <div class="meter"><canvas id="meter" width="480" height="48"></canvas></div>
+  <div class="actions">
+    <button id="record" class="btn primary">{{ t("Record") }}</button>
+    <button id="stop" class="btn" disabled>{{ t("Stop") }}</button>
+    <button id="cancel" class="btn" disabled>{{ t("Cancel") }}</button>
+  </div>
+  <p id="stage" class="stage"></p>
+  <div id="result" class="result" hidden>
+    <textarea id="text" readonly rows="10"></textarea>
+    <div class="row">
+      <button id="copy" class="btn">{{ t("Copy") }}</button>
+      <button id="download" class="btn">{{ t("Download") }}</button>
+    </div>
+  </div>
+</section>
+<script src="/static/recorder.js"></script>
+{% endblock %}

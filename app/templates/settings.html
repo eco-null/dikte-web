@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>{{ t("Settings") }}</h1>
+  <form id="settings-form">
+    {% for key, (kind, choices) in fields.items() %}
+    <label>{{ t(key) }}
+      {% if kind == "bool" %}
+      <select name="{{ key }}" data-kind="bool">
+        <option value="on" {% if settings[key] %}selected{% endif %}>{{ t("On") }}</option>
+        <option value="off" {% if not settings[key] %}selected{% endif %}>{{ t("Off") }}</option>
+      </select>
+      {% elif kind == "select" %}
+      <select name="{{ key }}">
+        {% for choice in choices %}
+        <option value="{{ choice }}" {% if settings[key] == choice %}selected{% endif %}>{{ choice }}</option>
+        {% endfor %}
+      </select>
+      {% else %}
+      <input name="{{ key }}" type="text"
+             {% if settings[key] %}value="{{ settings[key] }}"{% endif %}
+             placeholder="{{ t(key) }}">
+      {% endif %}
+    </label>
+    {% endfor %}
+    <button class="btn primary" type="submit">{{ t("Save") }}</button>
+    <p id="msg" class="stage"></p>
+  </form>
+</section>
+<script>
+  document.getElementById("settings-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const out = {};
+    for (const el of e.target.elements) {
+      if (!el.name) continue;
+      out[el.name] = el.value;
+      if (el.dataset.kind === "bool") out[el.name] = el.value === "on";
+    }
+    const resp = await fetch("/api/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ settings: out }),
+    });
+    document.getElementById("msg").textContent = resp.ok ? "Saved successfully." : (await resp.json()).detail || resp.status;
+    if (resp.ok) setTimeout(() => location.reload(), 700);
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>{{ meeting.title or meeting.ts }}</h1>
+  <p class="meta">{{ t("Model") }}: {{ meeting.model }} · {{ t("Status") }}: {{ meeting.status }}</p>
+  {% if meeting.error %}<p class="error">{{ meeting.error }}</p>{% endif %}
+  {% if doc %}<article class="minutes">{{ doc|markdown|safe }}</article>{% else %}
+  <p>{{ t("No transcript yet") }}</p>{% endif %}
+  <a class="btn" href="/meetings">{{ t("Back") }}</a>
+</section>
+{% endblock %}

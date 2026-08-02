@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>{{ t("Files") }}</h1>
+  <form id="file-form">
+    <label>{{ t("File") }} <input type="file" name="file" required></label>
+    <label><input type="checkbox" name="timestamps"> {{ t("Timestamps") }}</label>
+    <label><input type="checkbox" name="cleanup" checked> {{ t("Cleanup") }}</label>
+    <button class="btn primary" type="submit">{{ t("Upload") }}</button>
+  </form>
+  <p id="stage" class="stage"></p>
+  <div id="result" class="result" hidden>
+    <textarea id="text" readonly rows="14"></textarea>
+    <div class="row">
+      <button id="copy" class="btn" data-copy data-target="#text">{{ t("Copy") }}</button>
+      <button id="dl-txt" class="btn" data-download data-job-id="" data-fmt="txt">{{ t("Download") }} .txt</button>
+      <button id="dl-srt" class="btn" data-download data-job-id="" data-fmt="srt">.srt</button>
+    </div>
+  </div>
+</section>
+<script>
+  document.getElementById("file-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const stage = document.getElementById("stage");
+    stage.textContent = "Uploading…";
+    const resp = await fetch("/api/files/transcribe", { method: "POST", body: fd });
+    if (resp.status === 409) { stage.textContent = "Busy, one job at a time"; return; }
+    if (!resp.ok) { stage.textContent = (await resp.json()).detail || resp.status; return; }
+    const { job_id } = await resp.json();
+    for (const b of document.querySelectorAll("[data-download]")) b.dataset.jobId = job_id;
+    const resultBox = document.getElementById("result");
+    pollJob(job_id, { stage, resultBox, textEl: document.getElementById("text") });
+  });
+</script>
+{% endblock %}
