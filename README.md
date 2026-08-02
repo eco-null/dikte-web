@@ -4,6 +4,11 @@ Tek kullanıcılı, self-hosted konuşmadan yazıya web uygulaması. Dikte'nin Q
 çekirdeği (FastAPI + HTMX, stdlib-only) üzerine kuruludur: dikte, dosya
 transkripsiyonu, toplantı tutanakları, bir ajan, geçmiş ve ayarlar.
 
+Bu repo, [yusufipk/dikte](https://github.com/yusufipk/dikte) projesinin bir
+fork'udur. Orijinal çekirdek mantık ve transkripsiyon altyapısı
+[yusufipk/dikte](https://github.com/yusufipk/dikte)'den türetilmiştir; burada
+Qt masaüstü arayüzü çıkarılmış ve yerine FastAPI + HTMX web arayüzü konmuştur.
+
 ## Kurulum (Docker)
 
 1. Bir `.env` dosyası oluştur:
