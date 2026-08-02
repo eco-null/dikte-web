@@ -106,6 +106,11 @@ class PagesTest(DikteTest):
         for marker in ("chat", "data-copy"):
             self.assertIn(marker, body)
 
+    def test_history_page_has_bulk_actions(self):
+        body = self.client.get("/history").text
+        for marker in ("delete-selected", "row-check"):
+            self.assertIn(marker, body)
+
 
 if __name__ == "__main__":
     unittest.main()

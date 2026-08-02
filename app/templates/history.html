@@ -3,18 +3,18 @@
 <section class="card">
   <h1>{{ t("History") }}</h1>
   <div class="row">
-    <button class="btn danger" id="clear" hx-post="/api/history/clear"
+    <button class="btn btn-danger" id="clear" hx-post="/api/history/clear"
             hx-swap="none" hx-on::after-request="location.reload()">{{ t("Clear history") }}</button>
   </div>
   <table class="table">
     <thead><tr><th></th><th>{{ t("Transcript") }}</th><th>{{ t("Model") }}</th><th></th></tr></thead>
     <tbody>
       {% for e in entries %}
-      <tr>
-        <td><input type="checkbox" value='{{ e|tojson|forceescape }}' class="row-check"></td>
-        <td>{{ e.text[:120] }}</td>
+      <tr id="row-{{ loop.index }}">
+        <td><input type="checkbox" value='{{ e|tojson|forceescape }}' class="row-check" aria-label="{{ t('Select') }}"></td>
+        <td class="transcript-cell">{{ e.text[:120] }}</td>
         <td>{{ e.model }}</td>
-        <td><button class="btn" data-copy data-target="#row-{{ loop.index }}">{{ t("Copy") }}</button></td>
+        <td><button class="btn btn-sm" data-copy data-target="#row-{{ loop.index }}">{{ t("Copy") }}</button></td>
       </tr>
       {% endfor %}
     </tbody>
