@@ -1,63 +1,264 @@
 # Dikte Web
 
-Tek kullanıcılı, self-hosted konuşmadan yazıya web uygulaması. Dikte'nin Qt'siz
-çekirdeği (FastAPI + HTMX, stdlib-only) üzerine kuruludur: dikte, dosya
-transkripsiyonu, toplantı tutanakları, bir ajan, geçmiş ve ayarlar.
+> **[Türkçe okuyun](README.tr.md)** · [Read in Turkish](README.tr.md)
 
-Bu repo, [yusufipk/dikte](https://github.com/yusufipk/dikte) projesinin bir
-fork'udur. Orijinal çekirdek mantık ve transkripsiyon altyapısı
-[yusufipk/dikte](https://github.com/yusufipk/dikte)'den türetilmiştir; burada
-Qt masaüstü arayüzü çıkarılmış ve yerine FastAPI + HTMX web arayüzü konmuştur.
+**Dikte Web** is a single-user, self-hosted speech-to-text web app. It is a web
+rewrite of [yusufipk/dikte](https://github.com/yusufipk/dikte) — a voice
+dictation app for Linux — that drops the Qt desktop shell and serves the same
+transcription engine through a **FastAPI + HTMX** interface you use in a
+browser.
 
-## Kurulum (Docker)
+This repository is a **fork** of
+[yusufipk/dikte](https://github.com/yusufipk/dikte). The core transcription
+engine, VAD, cleanup prompts, meeting pipeline and agent logic are derived from
+the original project; the Qt desktop UI is replaced here with a web UI. The
+original desktop codebase is preserved on the `upstream-dikte` branch.
 
-1. Bir `.env` dosyası oluştur:
+---
+
+## Features
+
+- **Dictation** — record your voice in the browser and get a transcript, with
+  optional AI cleanup that removes fillers ("uh", "um"), stutters and thinking
+  sounds, adds punctuation, and repairs words the transcriber misheard.
+- **File transcription** — upload an audio or video file (mp3, m4a, mp4, wav,
+  …) and download the result as plain text or **SRT subtitles**.
+- **Meeting minutes** — upload a mono or stereo recording; the app transcribes
+  it, separates the speakers (you / the other side), and writes **markdown
+  minutes** with a summary.
+- **Agent** — ask a question and get an answer from a configurable assistant
+  model, with conversation history.
+- **History** — every dictation is saved to a searchable list you can clear.
+- **Settings** — all transcription, cleanup, meeting and assistant options live
+  in the web UI. API keys are masked and only ever replaced, never shown.
+
+## Language support
+
+The interface ships in **English and Turkish**. Set `ui_language` to `auto`,
+`en` or `tr` in Settings; `auto` guesses from your locale. The cleanup and
+meeting prompts are language-specific too.
+
+## Transcription providers
+
+Any of these can be selected in Settings as the transcription provider:
+
+| Provider | Base URL | Model default |
+|----------|----------|---------------|
+| OpenAI | `https://api.openai.com/v1` | `gpt-4o-transcribe` |
+| Groq | `https://api.groq.com/openai/v1` | `whisper-large-v3-turbo` |
+| OpenRouter | `https://openrouter.ai/api/v1` | `openai/gpt-4o-transcribe` |
+
+The assistant (agent) supports **OpenRouter** (cloud) and **OmniRoute** (a
+local, OpenAI-compatible endpoint), the latter intended for machines on your
+own network, e.g. a local LLM server.
+
+---
+
+## Quick start (Docker)
+
+1. Create a `.env` file in the project directory:
+
+   ```dotenv
+   DIKTE_WEB_PASSWORD=your-password
+   OPENAI_API_KEY=sk-...            # optional
+   GROQ_API_KEY=...                 # optional
+   OPENROUTER_API_KEY=...           # optional
+   OMNIROUTE_BASE_URL=http://host.docker.internal:20128/v1   # optional
    ```
-   DIKTE_WEB_PASSWORD=sifreniz
-   OPENAI_API_KEY=sk-...        # opsiyonel
-   GROQ_API_KEY=...             # opsiyonel
-   OPENROUTER_API_KEY=...       # opsiyonel
-   ```
-2. Başlat:
-   ```
+
+   `DIKTE_WEB_PASSWORD` is required (docker-compose refuses to start without
+   it). The API keys are only needed for the providers you actually use.
+
+2. Start the app:
+
+   ```bash
    docker compose up -d
    ```
-3. http://localhost:8000 adresine git, şifreyle gir.
 
-Veri, `dikte_data` volume'unda `/data` altında tutulur (config.json,
-history.jsonl, meetings/, web_password, assistant.json). Restart sonrası korunur.
+3. Open http://localhost:8000 and log in with the password.
 
-## Kullanım
+The image installs **ffmpeg**, so any audio/video conversion works out of the
+box. Uploads are capped at 1 GB (`DIKTE_MAX_UPLOAD`).
 
-- **Dikte**: mikrofon kaydı → transkript (otomatik temizlik opsiyonel).
-- **Dosya**: ses/video dosyası yükle → txt/srt indir.
-- **Toplantı**: mono veya stereo kayıt → tutanak (katılımcı adları opsiyonel).
-- **Ajan**: soru sor, ayarlanan provider'dan cevap al.
-- **Geçmiş**: kayıtlar listelenir ve temizlenir.
-- **Ayarlar**: provider, API anahtarı, model, toplantı/ajan seçenekleri.
+### The OmniRoute default
 
-## OmniRoute
+`host.docker.internal` resolves to the Docker host machine (compose maps it
+with `host-gateway`). If you run a local LLM server on the host at port 20128,
+the agent works immediately. You can change the base URL and model in Settings,
+or override the default with the `OMNIROUTE_BASE_URL` environment variable.
 
-OmniRoute, OpenAI-uyumlu bir yerel uçtur. Varsayılan adres
-`http://host.docker.internal:20128/v1` (compose `host-gateway` ile Docker'dan
-erişilir). Ayar ucu modelini ve base_url'ini Ayarlar'dan değiştirebilirsin;
-`OMNIROUTE_BASE_URL` env'i de varsayılanı ezebilir.
+### Running without Docker
 
-## Geliştirme
+```bash
+pip install -r requirements.txt
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+Requirements on the host:
+
+- **Python 3.10+** (developed and tested on 3.14).
+- **ffmpeg** on `PATH` (needed to convert uploads to WAV/MP3).
+- Set `DIKTE_WEB_PASSWORD` or read the password the app generates and prints
+  on first start (see *Authentication* below).
+
+---
+
+## Configuration
+
+### Environment variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `DIKTE_WEB_PASSWORD` | generated | The single login password. If unset, one is generated and stored in `web_password`, then printed to stderr. |
+| `XDG_CONFIG_HOME` | `~/.config` | Base for `dikte/config.json`. |
+| `XDG_DATA_HOME` | `~/.local/share` | Base for `dikte/` data: history, meetings, recordings, `web_password`, `assistant.json`. |
+| `OPENAI_API_KEY` | — | Convenience env; Settings is the source of truth. |
+| `GROQ_API_KEY` | — | Same. |
+| `OPENROUTER_API_KEY` | — | Same. |
+| `OMNIROUTE_BASE_URL` | `http://host.docker.internal:20128/v1` | Default override for the OmniRoute agent endpoint. |
+| `DIKTE_MAX_UPLOAD` | `1073741824` (1 GB) | Max upload size in bytes (413 above it). |
+
+### Data layout
+
+Everything persistent lives under the data dir (`$XDG_DATA_HOME/dikte`, mounted
+as `/data` in Docker):
 
 ```
+dikte/
+├── config.json          # settings (web Settings edits this)
+├── history.jsonl        # dictation history, one JSON row per line
+├── web_password         # generated password (only if DIKTE_WEB_PASSWORD unset)
+├── assistant.json       # agent conversation session
+├── recordings/          # kept only if keep-audio is enabled
+└── meetings/
+    ├── meetings.jsonl   # meeting index
+    ├── <base>.md        # generated minutes
+    └── <base>.wav       # meeting audio
+```
+
+### Settings exposed in the web UI
+
+- **General** — `ui_language`
+- **Transcription** — provider, per-provider model and API key, speech
+  language (`auto`/`tr`/`en`), prompt hint, **cleanup** toggle + model +
+  reasoning level, VAD options (`skip_silent`, `silence_db`,
+  `speech_margin_db`, `min_voiced_seconds`), hallucination filter, history
+  limit.
+- **Meetings** — cleanup toggle, model, reasoning, self/other participant
+  names, participants list.
+- **Assistant** — provider (OpenRouter/OmniRoute), model per provider, base
+  URL, session length in minutes, timeout.
+
+---
+
+## Authentication
+
+- Single shared password; no per-user accounts.
+- Login issues a signed, **httponly**, `SameSite=Lax` session cookie that
+  expires after **7 days**.
+- The cookie is HMAC-signed with a per-process random pepper, so it cannot be
+  forged across restarts.
+- If `DIKTE_WEB_PASSWORD` is not set, a random password is generated, saved to
+  `web_password`, and printed to the log on first start.
+
+> **Security note:** this is a single-user app guarded by a single password.
+> Do not expose it to the public internet. Run it on your own network or behind
+> a reverse proxy with TLS.
+
+---
+
+## HTTP API
+
+The app is a thin JSON API driven by HTMX. All endpoints below are behind the
+login gate (`/api/*` → `401` without a session).
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `POST` | `/login` | Log in (form field `password`). |
+| `GET` | `/logout` | Log out. |
+| `POST` | `/api/dictate` | Start a dictation job (multipart `audio`). |
+| `POST` | `/api/files/transcribe` | Start a file transcription job (`file`, `timestamps`, `cleanup`). |
+| `POST` | `/api/meetings` | Start a meeting job (`file`, `participants`). |
+| `GET` | `/api/meetings` | List meetings (newest first). |
+| `GET` | `/api/meetings/{base}` | Meeting detail + generated doc. |
+| `POST` | `/api/meetings/{base}/retry` | Re-run a meeting pipeline. |
+| `DELETE` | `/api/meetings/{base}` | Delete a meeting. |
+| `POST` | `/api/agent` | Ask the agent (`{"question": "…"}`). |
+| `GET` | `/api/jobs/{id}` | Poll a job's status/result. |
+| `GET` | `/api/jobs/{id}/download?format=txt\|srt` | Download a transcript. |
+| `GET` | `/api/history` | List history. |
+| `POST` | `/api/history/clear` | Clear history. |
+| `DELETE` | `/api/history` | Delete selected rows (`{"rows": […]}`). |
+| `GET` | `/api/settings` | Read settings (keys masked). |
+| `POST` | `/api/settings` | Save settings. |
+| `GET` | `/healthz` | Liveness probe (public, checks the config file is readable). |
+
+### Jobs
+
+Transcription and meeting work runs on background threads. `POST` endpoints
+return a `{"job_id": …}` immediately; the client polls
+`GET /api/jobs/{id}` until `status` is `done` or `failed`. Only one heavy job
+runs at a time — submitting a second one returns **`409 Conflict`**. Completed
+jobs are pruned automatically (keeps the last 100).
+
+---
+
+## Development
+
+```bash
 pip install -r requirements-dev.txt
 pytest
 uvicorn app.main:app --reload
 ```
 
-Notlar:
+- The test suite is **327 tests / 894 subtests**, all green (some POSIX-only
+  chmod tests skip on Windows).
+- Tests mock the network (providers) and ffmpeg conversions; the core functions
+  generate real WAV files so pipelines run end to end.
 
-- ffmpeg, `_to_wav`/`_to_mp3`/`_ffmpeg` çağrılarını mock eden testler dışında
-  gerekir (Docker imajı kurar; lokal makinede PATH'e ekle).
-- Testler Windows'ta POSIX chmod testlerini skip eder.
+```
+pytest                     # run everything
+pytest tests/test_routes.py -v   # the web E2E suite
+```
 
-## Güvenlik
+## Project layout
 
-Tek şifre, tek kullanıcı, HMAC imzalı cookie. WAN'a (internete) açmayın;
-yalnızca kendi ağında veya ters proxy arkasında kullanın.
+```
+app/
+├── main.py                # FastAPI app, auth gate, /healthz
+├── auth.py                # single-password login + signed cookie
+├── jobs.py                # background job runner (1 at a time, prune)
+├── settings.py            # web-facing settings slice + masking
+├── rms.py                 # audio level series (for the waveform)
+├── routes/
+│   ├── pages.py           # HTML pages (Jinja2)
+│   └── api.py             # JSON endpoints
+├── static/                # CSS, app.js, recorder.js, htmx
+├── templates/             # dictation, files, meetings, agent, history, settings
+└── vendor/dikte/          # the (Qt-free) upstream engine:
+    ├── api.py             # OpenAI/Groq/OpenRouter/local HTTP calls
+    ├── worker.py          # dictation pipeline
+    ├── filetranscribe.py  # file → txt/srt pipeline
+    ├── meeting.py         # meeting → minutes pipeline
+    ├── assistant.py       # agent (OpenRouter / OmniRoute)
+    ├── cleanup.py         # cleanup model calls
+    ├── config.py          # settings storage + defaults + prompts
+    ├── vad.py             # voice activity detection
+    ├── ggml.py            # local whisper.cpp / llama.cpp support
+    ├── signals.py         # progress emission
+    └── i18n.py            # en/tr string table
+tests/                     # full suite (unit + web E2E)
+```
+
+## Credits
+
+- Original project: **[yusufipk/dikte](https://github.com/yusufipk/dikte)** —
+  voice-to-text dictation app for Linux. All core engine code is derived from
+  it.
+- This fork removes the Qt desktop UI and adds a FastAPI + HTMX web interface,
+  single-password auth, background jobs, and Docker packaging.
+
+## License
+
+See the upstream project for the original license terms. This fork keeps the
+same license as [yusufipk/dikte](https://github.com/yusufipk/dikte).
