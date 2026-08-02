@@ -66,6 +66,18 @@ def _pct(done, total):
     return f"{int(done * 100 / total)}%"
 
 
+def _hydrate_local(conf):
+    if conf["transcribe_provider"] == "local":
+        ggml.whisper.configure(
+            model=conf["local_model"], threads=conf["local_threads"],
+            gpu=conf["local_gpu"], binary=conf["local_binary"])
+    if conf["cleanup_provider"] == "local-llm":
+        ggml.llm.configure(
+            model=conf["local_llm_model"], threads=conf["local_llm_threads"],
+            gpu=conf["local_llm_gpu"], binary=conf["local_llm_binary"],
+            context=conf["local_llm_context"])
+
+
 @router.get("/api/models")
 def list_models(request: Request):
     whisper, llm = [], []
@@ -166,6 +178,7 @@ async def dictate(request: Request, audio: UploadFile = File(...)):
     conf = _conf(request)
 
     def work(emit):
+        _hydrate_local(conf)
         workdir = tempfile.mkdtemp(prefix="dikte-dict-")
         try:
             wav = ft._to_wav(path, workdir)
@@ -193,6 +206,7 @@ async def transcribe_file(request: Request, file: UploadFile = File(...),
     do_cleanup = cleanup == "on"
 
     def work(emit):
+        _hydrate_local(conf)
         try:
             transcriber = ft.FileTranscriber(conf)
             transcriber.progress.connect(emit)
@@ -241,6 +255,7 @@ async def create_meeting(request: Request, file: UploadFile = File(...),
     conf = _conf(request)
 
     def work(emit):
+        _hydrate_local(conf)
         workdir = tempfile.mkdtemp(prefix="dikte-meet-")
         try:
             wav = _meeting_wav(path, workdir)

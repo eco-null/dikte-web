@@ -107,6 +107,26 @@ class Dictation(RouteTest):
         self.assertEqual(resp.status_code, 303)
         self.assertEqual(resp.headers["location"], "/login")
 
+    def test_local_transcription_uses_the_local_server(self):
+        conf = cfg.Config()
+        web_settings.apply(conf, {"transcribe_provider": "local",
+                                  "local_model": "ggml-small.bin",
+                                  "cleanup_enabled": False})
+        from app.main import app as fastapi_app
+        fastapi_app.state.conf = conf
+        clip = make_wav(self.path("clip.wav"), speech(1.0))
+        with mock.patch("filetranscribe._to_wav", return_value=str(clip)), \
+                mock.patch("ggml.whisper.configure") as cfgw, \
+                mock.patch("api.serving", return_value="http://127.0.0.1:9999/v1") as svc, \
+                mock.patch("api._request", return_value={"text": "yerel metin"}):
+            resp = self.client.post(
+                "/api/dictate",
+                files={"audio": ("rec.webm", b"fake-webm", "audio/webm")})
+            job = self.wait_job(resp.json()["job_id"])
+        self.assertEqual(job["status"], "done", job)
+        self.assertIn("yerel metin", job["result"]["text"])
+        cfgw.assert_called()
+
 
 class Files(RouteTest):
     def test_a_file_transcribes_and_downloads(self):
