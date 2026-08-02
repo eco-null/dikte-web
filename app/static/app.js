@@ -30,7 +30,10 @@ function pollJob(jobId, els, everyMs) {
 document.addEventListener("click", (e) => {
   const copy = e.target.closest("[data-copy]");
   if (copy) {
-    navigator.clipboard.writeText(copy.value || copy.textContent);
+    const target = copy.dataset.target;
+    const src = target ? document.querySelector(target) : copy;
+    const text = src ? (src.value || src.textContent) : "";
+    navigator.clipboard.writeText(text);
     return;
   }
   const dl = e.target.closest("[data-download]");

@@ -54,6 +54,13 @@ class PagesTest(DikteTest):
         resp = self.client.get("/api/history")
         self.assertEqual(resp.status_code, 401)
 
+    def test_dictation_page_wires_copy_and_download(self):
+        body = self.client.get("/dictate").text
+        self.assertIn('data-copy', body)
+        self.assertIn('data-target="#text"', body)
+        self.assertIn('data-download', body)
+        self.assertIn('data-fmt="txt"', body)
+
 
 if __name__ == "__main__":
     unittest.main()

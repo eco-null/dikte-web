@@ -12,8 +12,8 @@
   <div id="result" class="result" hidden>
     <textarea id="text" readonly rows="10"></textarea>
     <div class="row">
-      <button id="copy" class="btn">{{ t("Copy") }}</button>
-      <button id="download" class="btn">{{ t("Download") }}</button>
+      <button id="copy" class="btn" data-copy data-target="#text">{{ t("Copy") }}</button>
+      <button id="download" class="btn" data-download data-job-id="" data-fmt="txt">{{ t("Download") }}</button>
     </div>
   </div>
 </section>

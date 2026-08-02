@@ -81,6 +81,8 @@
       if (!resp.ok) { stage.textContent = (await resp.json()).detail || resp.status; return; }
       jobId = (await resp.json()).job_id;
     } catch (err) { stage.textContent = "Upload failed: " + err; return; }
+    const dlBtn = document.getElementById("download");
+    if (dlBtn) dlBtn.dataset.jobId = jobId;
     pollJob(jobId, { stage, resultBox, textEl });
   }
 
