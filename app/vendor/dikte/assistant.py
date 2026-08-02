@@ -6,6 +6,7 @@ yolları webapp'e taşınmaz.
 """
 
 import json
+import os
 import time
 
 import api
@@ -105,8 +106,8 @@ def ask(prompt, conf, on_stage=None, should_stop=None, provider="", model=""):
     if name not in PROVIDERS:
         name = "openrouter"
     if name == "omniroute":
-        return _ask_http(prompt, conf, "omniroute",
-                         conf["assistant_omniroute_base_url"],
+        base_url = os.environ.get("OMNIROUTE_BASE_URL") or conf["assistant_omniroute_base_url"]
+        return _ask_http(prompt, conf, "omniroute", base_url,
                          model or conf["assistant_omniroute_model"], on_stage)
     return _ask_http(prompt, conf, "openrouter", conf["openrouter_base_url"],
                      model or conf["assistant_openrouter_model"], on_stage)
