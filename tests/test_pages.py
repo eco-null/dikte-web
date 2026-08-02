@@ -94,6 +94,13 @@ class PagesTest(DikteTest):
         for marker in ("dropzone", "data-download", 'data-fmt="srt"'):
             self.assertIn(marker, body)
 
+    def test_meetings_page_has_action_buttons(self):
+        cfg.save_meeting({"base": "20260101-120000", "status": "failed",
+                          "title": "Eski toplantı", "model": "x"})
+        body = self.client.get("/meetings").text
+        for marker in ("data-retry", "data-del", "meeting-card"):
+            self.assertIn(marker, body)
+
 
 if __name__ == "__main__":
     unittest.main()

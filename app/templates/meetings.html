@@ -2,33 +2,32 @@
 {% block content %}
 <section class="card">
   <h1>{{ t("Meeting minutes") }}</h1>
-  <form id="meet-form">
-    <label>{{ t("File") }} <input type="file" name="file" accept="audio/*,video/*" required></label>
-    <label>{{ t("Participants") }} <textarea name="participants" rows="2" placeholder="{{ t('One name per line') }}"></textarea></label>
-    <button class="btn primary" type="submit">{{ t("Upload") }}</button>
+  <form id="meet-form" class="stack">
+    <label class="field">{{ t("File") }} <input type="file" name="file" accept="audio/*,video/*" required></label>
+    <label class="field">{{ t("Participants") }} <textarea name="participants" rows="2" placeholder="{{ t('One name per line') }}"></textarea></label>
+    <button class="btn btn-primary" type="submit">{{ t("Upload") }}</button>
   </form>
-  <p id="stage" class="stage"></p>
+  <p id="stage" class="stage" role="status"></p>
 </section>
 <section class="card">
   <h2>{{ t("History") }}</h2>
-  <table class="table">
-    <thead><tr><th>{{ t("Transcript") }}</th><th>{{ t("Model") }}</th><th>{{ t("Status") }}</th><th></th></tr></thead>
-    <tbody>
-      {% for m in meetings %}
-      <tr>
-        <td><a href="/meetings/{{ m.base }}">{{ m.title or m.ts }}</a></td>
-        <td>{{ m.model }}</td>
-        <td class="badge status-{{ m.status }}">{{ m.status }}</td>
-        <td class="row">
-          {% if m.status in ('recorded','failed') %}
-          <button class="btn" data-retry="{{ m.base }}">{{ t("Retry") }}</button>
-          {% endif %}
-          <button class="btn danger" data-del="{{ m.base }}">{{ t("Delete") }}</button>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <div class="meeting-list">
+    {% for m in meetings %}
+    <article class="meeting-card">
+      <div class="meeting-info">
+        <a class="meeting-title" href="/meetings/{{ m.base }}">{{ m.title or m.ts }}</a>
+        <span class="meta">{{ m.model or t('—') }}</span>
+        <span class="badge status-{{ m.status }}">{{ m.status }}</span>
+      </div>
+      <div class="row">
+        {% if m.status in ('recorded','failed') %}
+        <button class="btn btn-sm" data-retry="{{ m.base }}">{{ t("Retry") }}</button>
+        {% endif %}
+        <button class="btn btn-danger btn-sm" data-del="{{ m.base }}">{{ t("Delete") }}</button>
+      </div>
+    </article>
+    {% endfor %}
+  </div>
 </section>
 <script>
   const stage = document.getElementById("stage");
