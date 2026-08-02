@@ -17,9 +17,15 @@
         {% endfor %}
       </select>
       {% else %}
+      {% if key in masked %}
       <input name="{{ key }}" type="text"
-             {% if settings[key] %}value="{{ settings[key] }}"{% endif %}
+             value=""
+             placeholder="{{ settings[key] or t(key) }}">
+      {% else %}
+      <input name="{{ key }}" type="text"
+             value="{{ settings[key] or '' }}"
              placeholder="{{ t(key) }}">
+      {% endif %}
       {% endif %}
     </label>
     {% endfor %}

@@ -41,6 +41,12 @@ class PagesTest(DikteTest):
         self.assertIn('lang="tr"', body)
         self.assertNotIn('lang="auto"', body)
 
+    def test_settings_never_sends_masked_keys_as_values(self):
+        conf = self.config(openai_api_key="sk-verysecret123")
+        fastapi_app.state.conf = conf
+        body = self.client.get("/settings").text
+        self.assertNotIn('value="sk-', body)
+
     def test_logout_clears_the_session(self):
         resp = self.client.get("/logout", follow_redirects=False)
         self.assertEqual(resp.status_code, 303)

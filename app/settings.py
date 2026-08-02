@@ -82,6 +82,10 @@ def apply(conf, updates):
     for key, raw in (updates or {}).items():
         if key not in WEB_FIELDS:
             continue
+        if key in MASKED and str(raw).strip() == redact(key, conf[key]):
+            # The settings page sent the masked placeholder back; keep the
+            # stored key rather than writing the redaction over it.
+            continue
         if key in MASKED and not str(raw).strip():
             continue
         value = _coerce(key, raw)

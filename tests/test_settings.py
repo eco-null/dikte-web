@@ -37,6 +37,17 @@ class Settings(DikteTest):
         web.apply(conf, {"openai_api_key": "sk-new"})
         self.assertEqual(conf["openai_api_key"], "sk-new")
 
+    def test_apply_ignores_a_masked_value_that_is_the_stored_redaction(self):
+        conf = self.config(openai_api_key="sk-verysecret123")
+        shown = web.present(conf)["openai_api_key"]          # e.g. sk-…123
+        web.apply(conf, {"openai_api_key": shown})
+        self.assertEqual(conf["openai_api_key"], "sk-verysecret123")
+
+    def test_apply_still_replaces_with_a_fresh_key(self):
+        conf = self.config(openai_api_key="sk-verysecret123")
+        web.apply(conf, {"openai_api_key": "sk-brandnew456"})
+        self.assertEqual(conf["openai_api_key"], "sk-brandnew456")
+
     def test_unknown_keys_are_ignored(self):
         conf = self.config()
         web.apply(conf, {"made_up_key": "x"})

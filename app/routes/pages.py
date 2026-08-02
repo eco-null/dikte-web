@@ -99,5 +99,6 @@ def settings_page(request: Request):
     return _render(request, "settings.html", {
         "fields": web_settings.WEB_FIELDS,
         "settings": web_settings.present(request.app.state.conf),
+        "masked": web_settings.MASKED,
         "conf": request.app.state.conf,
     })
