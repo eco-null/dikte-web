@@ -73,6 +73,14 @@ class PagesTest(DikteTest):
                       "--radius-md", "--font-sans", "--duration-fast"):
             self.assertIn(token, css)
 
+    def test_css_respects_reduced_motion(self):
+        css = self.client.get("/static/app.css").text
+        self.assertIn("prefers-reduced-motion", css)
+
+    def test_css_has_focus_visible_rings(self):
+        css = self.client.get("/static/app.css").text
+        self.assertIn(":focus-visible", css)
+
     def test_nav_uses_svg_icons_not_emoji(self):
         body = self.client.get("/dictate").text
         self.assertIn("<svg", body)

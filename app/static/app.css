@@ -122,6 +122,11 @@ main { max-width: 900px; margin: 0 auto; padding: var(--space-5) var(--space-4) 
   margin-bottom: var(--space-4);
 }
 
+.meeting-list { display: flex; flex-direction: column; gap: var(--space-3); }
+.meeting-info { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); margin-bottom: var(--space-3); }
+.meeting-title { font-weight: 600; font-size: var(--text-base); color: var(--color-foreground); }
+.meeting-title:hover { color: var(--color-primary); }
+
 .settings-section {
   background: var(--color-card);
   border: 1px solid var(--color-border);
@@ -200,8 +205,8 @@ input:focus, textarea:focus, select:focus { border-color: var(--color-primary); 
 .btn:hover { background: var(--color-card); border-color: var(--color-muted); }
 .btn.primary, .btn-primary { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
 .btn.primary:hover, .btn-primary:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
-.btn.danger { background: var(--color-danger); border-color: var(--color-danger); color: #fff; }
-.btn.danger:hover { background: var(--color-accent-hover); border-color: var(--color-accent-hover); }
+.btn.danger, .btn-danger { background: var(--color-danger); border-color: var(--color-danger); color: #fff; }
+.btn.danger:hover, .btn-danger:hover { background: var(--color-accent-hover); border-color: var(--color-accent-hover); }
 .btn:disabled { opacity: 0.5; cursor: default; }
 
 .btn-ghost { background: transparent; border-color: transparent; color: var(--color-muted); }
@@ -250,6 +255,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--color-primary); 
 .table { width: 100%; border-collapse: collapse; }
 .table th, .table td { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--color-border); vertical-align: top; }
 .table th { color: var(--color-muted); font-weight: 600; }
+.transcript-cell { max-width: 520px; color: var(--color-muted); overflow-wrap: anywhere; }
 
 /* ---------- badges ---------- */
 
@@ -393,6 +399,18 @@ input:focus, textarea:focus, select:focus { border-color: var(--color-primary); 
 /* ---------- misc ---------- */
 
 .check { color: var(--color-success); }
+
+.model-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elev);
+}
+.model-row:hover { border-color: var(--color-muted); }
 
 /* ---------- reduced motion ---------- */
 
