@@ -32,6 +32,7 @@ def create_app():
 
     templates = Jinja2Templates(directory=TEMPLATE_DIR)
     templates.env.globals["t"] = i18n.t
+    templates.env.globals["lang"] = i18n.language
     templates.env.filters["markdown"] = markdown.markdown
     app.state.templates = templates
 
