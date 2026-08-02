@@ -129,6 +129,32 @@ class Files(RouteTest):
         self.assertIn("dosya metni", dl.text)
 
 
+class Downloads(RouteTest):
+    def test_download_404_for_unknown_job(self):
+        resp = self.client.get("/api/jobs/does-not-exist/download")
+        self.assertEqual(resp.status_code, 404)
+
+    def test_download_404_for_a_failed_job(self):
+        clip = make_wav(self.path("clip.wav"), speech(1.0))
+        with mock.patch("filetranscribe._to_wav",
+                        side_effect=RuntimeError("ffmpeg missing")):
+            resp = self.client.post(
+                "/api/files/transcribe",
+                files={"file": ("clip.mp4", b"fake", "video/mp4")})
+            job = self.wait_job(resp.json()["job_id"])
+        self.assertEqual(job["status"], "failed")
+        dl = self.client.get(f"/api/jobs/{job['id']}/download")
+        self.assertEqual(dl.status_code, 404)
+
+    def test_an_oversized_upload_is_413(self):
+        import app.routes.api as api_routes
+        with mock.patch.object(api_routes, "MAX_UPLOAD", 4):
+            resp = self.client.post(
+                "/api/dictate",
+                files={"audio": ("big.webm", b"x" * 100, "audio/webm")})
+        self.assertEqual(resp.status_code, 413)
+
+
 class Meetings(RouteTest):
     def test_a_mono_upload_writes_minutes(self):
         clip = make_wav(self.path("meet.wav"), speech(1.0))
@@ -148,6 +174,38 @@ class Meetings(RouteTest):
         self.assertEqual(rows[-1]["status"], "done")
         detail = self.client.get(f"/api/meetings/{rows[-1]['base']}")
         self.assertIn("Toplantı", detail.json()["doc"])
+
+    def test_delete_and_unknown_meeting(self):
+        base = "20260101-120000"
+        cfg.save_meeting({"base": base, "status": "recorded", "title": ""})
+        resp = self.client.delete(f"/api/meetings/{base}")
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotIn(base, [r["base"] for r in cfg.read_meetings()])
+        resp = self.client.delete(f"/api/meetings/{base}")
+        self.assertEqual(resp.status_code, 200)  # idempotent
+
+    def test_meeting_detail_404(self):
+        resp = self.client.get("/api/meetings/19990101-000000")
+        self.assertEqual(resp.status_code, 404)
+
+    def test_retry_reruns_the_pipeline(self):
+        base = "20260101-130000"
+        wav = self.path("meet.wav")
+        make_wav(wav, speech(1.0))
+        cfg.save_meeting({"base": base, "status": "failed", "title": "",
+                          "error": "old error"})
+        cfg.meeting_paths(base)[1].parent.mkdir(parents=True, exist_ok=True)
+        import shutil
+        shutil.copyfile(wav, cfg.meeting_paths(base)[1])
+        with mock.patch("filetranscribe._ffmpeg") as ff:
+            ff.side_effect = lambda *a, **k: str(wav)
+            with fake_urlopen(
+                {"text": "merhaba"},
+                {"choices": [{"message": {"content": "# Toplantı\n\nÖzet"}}]},
+            ):
+                resp = self.client.post(f"/api/meetings/{base}/retry")
+                job = self.wait_job(resp.json()["job_id"])
+        self.assertEqual(job["status"], "done", job)
 
 
 class Agent(RouteTest):
