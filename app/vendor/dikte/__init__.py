@@ -9,7 +9,7 @@ import importlib
 import sys
 
 _MODULES = ("i18n", "ggml", "vad", "api", "config", "assistant",
-            "cleanup", "worker")
+            "cleanup", "filetranscribe", "worker")
 
 for _name in _MODULES:
     sys.modules[_name] = importlib.import_module(f"{__name__}.{_name}")

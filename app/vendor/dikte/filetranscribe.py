@@ -1,4 +1,4 @@
-"""Transcribe an existing audio/video file with the same models.
+"""Transcribe an existing audio/video file with the same models. (webapp)
 
 ffmpeg converts whatever comes in to 16 kHz mono WAV, and for a hosted API to
 mp3 on top of that. The upload limit is the only reason a file is ever cut up,
@@ -18,14 +18,12 @@ import re
 import shutil
 import subprocess
 import tempfile
-import threading
 import wave
 
-from PyQt6.QtCore import QObject, pyqtSignal
+from .signals import Signal
 
 import api
 import cleanup
-import ggml
 from i18n import t
 
 UPLOAD_LIMIT = 24 * 1024 * 1024  # the APIs take 25 MB; leave the form its room
@@ -45,61 +43,28 @@ STAMP_RE = re.compile(r"^\[(?:(\d+):)?(\d{1,2}):(\d{2})\]\s*")
 Cancelled = api.Aborted
 
 
-class FileTranscriber(QObject):
-    progress = pyqtSignal(str)
-    finished = pyqtSignal(str, list)   # text, [(start, end, text)] when timestamped
-    failed = pyqtSignal(str)
+class FileTranscriber:
+    progress = Signal()
 
-    def __init__(self, conf, parent=None):
-        super().__init__(parent)
+    def __init__(self, conf):
         self.conf = conf
-        self._thread = None
         self._abort = api.Aborter()
-        # The server on this machine the work is with, when it is with one.
-        self._local = None
 
-    @property
-    def busy(self):
-        return self._thread is not None and self._thread.is_alive()
-
-    def start(self, path, timestamps, do_cleanup):
-        if self.busy:
-            return
-        self._abort = api.Aborter()      # the last one is spent
-        self._thread = threading.Thread(
-            target=self._work, args=(path, timestamps, do_cleanup), daemon=True
-        )
-        self._thread.start()
-
-    def stop(self):
-        """Cut the run off where it stands, rather than at the next step."""
-        self._abort.abort()
-        # Closing the socket is nothing to a server on this machine: it is a
-        # process of ours, and it would grind on to the end of the chunk with
-        # nobody left to hand the answer to. Stopping it is what stops the
-        # work; the next run starts it again. Killing waits on the process, so
-        # not on the thread the window is drawn from.
-        local = self._local
-        if local is not None:
-            threading.Thread(target=local.stop, daemon=True).start()
-
-    def _check(self):
-        self._abort.check()
+    def transcribe(self, path, timestamps, do_cleanup):
+        """Çağıran thread'de çalışır; (text, segments) döndürür."""
+        return self._work(path, timestamps, do_cleanup)
 
     def _work(self, path, timestamps, do_cleanup):
         conf = self.conf
-        workdir = None
+        if not shutil.which("ffmpeg"):
+            raise api.ApiError(t("ffmpeg not found. Install it to transcribe files."))
+        workdir = tempfile.mkdtemp(prefix="dikte-file-")
         try:
-            if not shutil.which("ffmpeg"):
-                raise api.ApiError(t("ffmpeg not found. Install it to transcribe files."))
-
-            workdir = tempfile.mkdtemp(prefix="dikte-file-")
             self.progress.emit(t("Converting audio…"))
             wav_path = _to_wav(path, workdir, self._abort)
-            self._check()
+            self._abort.check()
 
             target = conf.transcribe_target()
-            self._local = ggml.whisper if target.provider == "local" else None
             chunks = self._chunks(wav_path, workdir, target, timestamps)
             if len(chunks) > 1:
                 self.progress.emit(t("Splitting into {count} chunks…", count=len(chunks)))
@@ -107,7 +72,7 @@ class FileTranscriber(QObject):
             pieces = []
             segments = []
             for index, (chunk_path, offset) in enumerate(chunks, start=1):
-                self._check()
+                self._abort.check()
                 self.progress.emit(
                     t("Transcribing chunk {index}/{count}…",
                       index=index, count=len(chunks))
@@ -139,30 +104,16 @@ class FileTranscriber(QObject):
             text = "\n".join(pieces) if timestamps else " ".join(pieces)
 
             if do_cleanup and text:
-                self._check()
+                self._abort.check()
                 self.progress.emit(t("Cleaning up…"))
                 text = self._cleanup(text, timestamps)
 
-            self.finished.emit(text, segments)
-
-        except Cancelled:
-            self.progress.emit(t("Stopped."))
-        except (api.ApiError, OSError, subprocess.SubprocessError, wave.Error) as exc:
-            self.failed.emit(str(exc))
+            return text, segments
         finally:
-            self._local = None
-            if workdir:
-                shutil.rmtree(workdir, ignore_errors=True)
+            shutil.rmtree(workdir, ignore_errors=True)
 
     def _chunks(self, wav_path, workdir, target, timestamps):
-        """[(the file to send, its offset in seconds)], one entry where it can be.
-
-        A server on this machine is handed the WAV as it is: nothing is being
-        uploaded, so the encoder would cost quality and buy nothing.
-        """
-        if target.provider == "local":
-            return [(wav_path, 0.0)]
-
+        """[(the file to send, its offset in seconds)], one entry where it can be."""
         whole = _to_mp3(wav_path, workdir, "audio.mp3", self._abort)
         seconds = chunk_seconds(whole, wav_seconds(wav_path))
         if not seconds:
@@ -170,7 +121,7 @@ class FileTranscriber(QObject):
 
         # Only a timestamped run can tell what it has already heard, so only it
         # can afford the overlap that keeps a cue off the cut.
-        self._check()
+        self._abort.check()
         pieces = split_wav(wav_path, workdir, seconds,
                            OVERLAP_SECONDS if timestamps else 0)
         return [(_to_mp3(piece, workdir, f"chunk-{index:03d}.mp3", self._abort), offset)
@@ -178,11 +129,10 @@ class FileTranscriber(QObject):
 
     def _cleanup(self, text, timestamps):
         conf = self.conf
-        self._local = ggml.llm if cleanup.provider(conf) == "local" else None
         prompt = conf.cleanup_prompt(with_timestamps=timestamps, subtitles=True)
         out = []
         for block in split_text(text, timestamps):
-            self._check()
+            self._abort.check()
             out.append(cleanup.run(block, conf, prompt, aborter=self._abort))
         return ("\n" if timestamps else "\n\n").join(out)
 
