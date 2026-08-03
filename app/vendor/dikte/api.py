@@ -13,6 +13,7 @@ is up, which is the one thing this module has to fill in for it.
 import collections
 import contextlib
 import http.client
+import ipaddress
 import json
 import mimetypes
 import os
@@ -20,6 +21,7 @@ import secrets
 import socket
 import threading
 import urllib.error
+import urllib.parse
 import urllib.request
 
 import ggml
@@ -36,6 +38,22 @@ OPENROUTER_URL = "https://openrouter.ai/api/v1"
 # time, and a long recording on a machine without a graphics card takes a good
 # deal of it. Cutting that off would throw the work away for nothing.
 LOCAL_TIMEOUT = 3600
+
+# The base URL of an OmniRoute-style agent is user-editable in the web settings,
+# so an authenticated user could repoint it at 169.254.169.254, a docker
+# network, or any other internal address this server can reach, and read the
+# answer back through the agent. chat() therefore refuses everything except
+# public addresses and the two deliberate internal exceptions the documented
+# local-agent flow depends on: host.docker.internal (the default base URL) and
+# localhost / 127.0.0.1 (an explicitly configured local agent).
+_LOCAL_HOSTS = frozenset({"host.docker.internal", "localhost", "127.0.0.1"})
+_PRIVATE_NETWORKS = tuple(
+    ipaddress.ip_network(net)
+    for net in (
+        "0.0.0.0/8", "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
+        "127.0.0.0/8", "169.254.0.0/16", "::1/128", "fc00::/7", "fe80::/10",
+    )
+)
 
 # Where a transcription request goes; built by config.Config.transcribe_target().
 # `service` is the name the user sees in an error, `provider` the one the code
@@ -498,6 +516,48 @@ def cleanup(text, api_key, model, system_prompt, reasoning="",
     return content
 
 
+def _is_internal(ip):
+    """Whether an IP falls in a range nothing here should be pointed at."""
+    return any(ip in net for net in _PRIVATE_NETWORKS)
+
+
+def _assert_safe_url(base_url):
+    """Refuse a base URL an agent should not be pointed at (SSRF gate).
+
+    Only http(s) is understood; file://, a scheme-less string and anything
+    else made up is refused rather than guessed at. An IP literal is judged on
+    its own address; a name is judged on where it actually resolves, so a name
+    that hides a private address is refused along with the literal. The
+    documented OmniRoute default and an explicitly configured local agent stay
+    usable: host.docker.internal, localhost and 127.0.0.1 are always allowed.
+    """
+    try:
+        parts = urllib.parse.urlsplit(base_url or "")
+        scheme = parts.scheme.lower()
+        host = (parts.hostname or "").strip().lower()
+    except ValueError:
+        scheme, host = "", ""
+    if scheme not in ("http", "https") or not host:
+        raise ApiError(t("This address is not an http(s) URL, so it was refused."))
+    if host in _LOCAL_HOSTS:
+        return
+    try:
+        blocked = _is_internal(ipaddress.ip_address(host))
+    except ValueError:
+        # A name rather than a literal: judged on where it resolves to.
+        try:
+            resolved = [addr[0].split("%", 1)[0]
+                        for _family, _type, _proto, _canon, addr
+                        in socket.getaddrinfo(host, None)]
+        except OSError:
+            resolved = []
+        if not resolved:
+            raise ApiError(t("This address does not resolve, so it was refused."))
+        blocked = any(_is_internal(ipaddress.ip_address(item)) for item in resolved)
+    if blocked:
+        raise ApiError(t("This address is a private or local one, so it was refused."))
+
+
 def chat(messages, api_key, model, system_prompt, reasoning="",
          base_url=OPENROUTER_URL, timeout=180, provider="openrouter",
          service="OpenRouter", key_required=True):
@@ -509,6 +569,7 @@ def chat(messages, api_key, model, system_prompt, reasoning="",
     if key_required and not api_key:
         raise ApiError(t("{service} API key is empty. Add it in Settings.",
                          service=service))
+    _assert_safe_url(base_url)
     payload = {
         "messages": [{"role": "system", "content": system_prompt}] + list(messages),
     }

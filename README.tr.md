@@ -111,8 +111,9 @@ Ana makinedeki gereksinimler:
 
 - **Python 3.10+** (geliştirme ve test 3.14'te yapıldı).
 - `PATH`'te **ffmpeg** (yüklemeleri WAV/MP3'e çevirmek için).
-- `DIKTE_WEB_PASSWORD` değerini ayarla veya ilk başlangıçta üretilip basılan
-  şifreyi oku (aşağıdaki *Kimlik doğrulama* bölümüne bak).
+- `DIKTE_WEB_PASSWORD` değerini ayarla veya ilk başlangıçta üretilip
+  `web_password` dosyasına kaydedilen şifreyi oku (aşağıdaki *Kimlik
+  doğrulama* bölümüne bak).
 
 ---
 
@@ -122,7 +123,7 @@ Ana makinedeki gereksinimler:
 
 | Değişken | Varsayılan | Açıklama |
 |----------|-----------|----------|
-| `DIKTE_WEB_PASSWORD` | üretilir | Tek giriş şifresi. Boşsa rastgele üretilir, `web_password` dosyasına yazılır ve stderr'e basılır. |
+| `DIKTE_WEB_PASSWORD` | üretilir | Tek giriş şifresi. Boşsa rastgele üretilir, `web_password` dosyasına yazılır (0600 izni, günlüğe yazılmaz). |
 | `XDG_CONFIG_HOME` | `~/.config` | `dikte/config.json` için taban. |
 | `XDG_DATA_HOME` | `~/.local/share` | `dikte/` verisi için taban: geçmiş, toplantılar, kayıtlar, `web_password`, `assistant.json`. |
 | `OPENAI_API_KEY` | — | Kolaylık env'i; asıl kaynak Ayarlar'dır. |
@@ -183,8 +184,8 @@ dikte/
   sonra dolar.
 - Çerez, işlem başına rastgele bir pepper ile HMAC imzalıdır; yeniden
   başlatmalar arasında taklit edilemez.
-- `DIKTE_WEB_PASSWORD` ayarlanmamışsa rastgele bir şifre üretilir,
-  `web_password` dosyasına kaydedilir ve ilk başlangıçta günlüğe basılır.
+- `DIKTE_WEB_PASSWORD` ayarlanmamışsa rastgele bir şifre üretilir ve
+  `web_password` dosyasına kaydedilir (0600 izni); asla günlüğe yazılmaz.
 
 > **Güvenlik notu:** bu, tek şifreyle korunan tek kullanıcılı bir uygulamadır.
 > İnternete açmayın. Kendi ağında veya TLS'li bir ters proxy arkasında
@@ -282,6 +283,30 @@ tests/                     # tam takım (birim + web E2E)
 - Bu fork, Qt masaüstü arayüzünü çıkarır ve FastAPI + HTMX web arayüzü, tek
   şifreli kimlik doğrulama, arka plan işleri, yerel whisper.cpp/llama.cpp
   desteği ve Docker paketlemesi ekler.
+
+## Güvenlik
+
+- **Tek şifre + hız sınırlama.** Uygulama tek bir ortak şifreyle korunur
+  (`DIKTE_WEB_PASSWORD`). Giriş, istemci IP'si başına hız sınırlıdır
+  (15 dakikada 5 başarısız deneme → `429`) ve şifre sabit zamanlı
+  karşılaştırmayla denetlenir.
+- **Oturum çerezi.** `dikte_session` çerezi `HttpOnly`, `SameSite=Lax` ve
+  varsayılan olarak `Secure`'dur (`DIKTE_COOKIE_SECURE=1`). `Secure` bayrağını
+  yalnızca güvenilir bir ağda düz HTTP üzerinden çalışıyorsan kapat
+  (`DIKTE_COOKIE_SECURE=0`).
+- **TLS ters proxy gerekli.** Servis yalnızca loopback'e bağlanır
+  (`127.0.0.1:8000`). Uygulamayı Caddy, nginx veya Traefik gibi TLS'li bir ters
+  proxy arkasına al ve proxy'nin `127.0.0.1:8000`'e iletmesini sağla. 8000
+  portunu doğrudan internete açma.
+- **CSRF koruması.** Değiştirici istekler aynı kökenden gelen
+  `Origin`/`Referer` başlığına göre denetlenir; siteler arası istekler `403` ile
+  reddedilir.
+- **Markdown temizlenir.** Toplantı tutanakları HTML olarak gösterilirken nh3
+  HTML temizleyicisinden geçirilir; böylece transkript içeriğinden gelen
+  depolanmış XSS engellenir.
+- **Birimi gizli tut.** `dikte_data` biriminde API anahtarları (`config.json`
+  içinde) ve toplantı kayıtları düz metin olarak durur. Düzenli yedek al ve
+  yalnızca senin okuyabildiğin dosya sistemlerinde sakla.
 
 ## Lisans
 

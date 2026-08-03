@@ -1,6 +1,7 @@
 """Web sayfalarının JSON API'si. Auth gate main.py'deki middleware'dedir."""
 
 import os
+import re
 import shutil
 import tempfile
 from pathlib import Path
@@ -22,6 +23,17 @@ from app import auth, jobs, rms, settings as web_settings
 router = APIRouter()
 
 MAX_UPLOAD = int(os.environ.get("DIKTE_MAX_UPLOAD", str(1024 ** 3)))
+MAX_AUDIO_SECONDS = 4 * 3600
+MAX_QUESTION_CHARS = 4000
+
+
+def _valid_base(base):
+    return bool(re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}", base))
+
+
+def _check_duration(duration):
+    if duration > MAX_AUDIO_SECONDS:
+        raise RuntimeError("Recording is longer than the 4 hour limit")
 
 
 def _conf(request):
@@ -37,7 +49,12 @@ def _save_upload(upload: UploadFile) -> str:
     os.close(fd)
     try:
         with open(path, "wb") as fh:
-            shutil.copyfileobj(upload.file, fh)
+            total = 0
+            while chunk := upload.file.read(1024 * 1024):
+                total += len(chunk)
+                if total > MAX_UPLOAD:
+                    raise HTTPException(413, detail="upload too large")
+                fh.write(chunk)
     except Exception:
         os.unlink(path)
         raise
@@ -119,6 +136,11 @@ def install_model(request: Request, payload: dict = Body(...)):
     repo = str(payload.get("repo") or "")
     conf = _conf(request)
 
+    if kind == "program" and name not in ("whisper", "llama"):
+        raise HTTPException(400, detail="unknown program")
+    if kind == "llm" and repo not in ggml.llm_repos():
+        raise HTTPException(400, detail="repo not allowed")
+
     def work(emit):
         if kind == "program":
             program = ggml.WHISPER if name == "whisper" else ggml.LLAMA
@@ -192,6 +214,7 @@ async def dictate(request: Request, audio: UploadFile = File(...)):
         try:
             wav = ft._to_wav(path, workdir)
             duration = ft.wav_seconds(wav)
+            _check_duration(duration)
             rms_values = rms.series(wav)
             pipeline = worker.Pipeline(conf)
             pipeline.stage.connect(emit)
@@ -216,14 +239,21 @@ async def transcribe_file(request: Request, file: UploadFile = File(...),
 
     def work(emit):
         _hydrate_local(conf)
+        if not shutil.which("ffmpeg"):
+            raise api.ApiError(
+                api.t("ffmpeg not found. Install it to transcribe files."))
+        workdir = tempfile.mkdtemp(prefix="dikte-file-")
         try:
+            wav = ft._to_wav(path, workdir)
+            _check_duration(ft.wav_seconds(wav))
             transcriber = ft.FileTranscriber(conf)
             transcriber.progress.connect(emit)
-            text, segments = transcriber.transcribe(path, want_ts, do_cleanup)
+            text, segments = transcriber.transcribe(wav, want_ts, do_cleanup)
             srt = ft.to_srt(text, segments) if want_ts else ""
             return {"text": text, "segments": [list(s) for s in segments],
                     "srt": srt}
         finally:
+            shutil.rmtree(workdir, ignore_errors=True)
             if os.path.exists(path):
                 os.unlink(path)
 
@@ -269,7 +299,10 @@ async def create_meeting(request: Request, file: UploadFile = File(...),
         try:
             wav = _meeting_wav(path, workdir)
             duration = ft.wav_seconds(wav)
+            _check_duration(duration)
             base = meeting.new_base()
+            if not _valid_base(base):
+                raise RuntimeError("invalid meeting id")
             entry = meeting.new_entry(base, duration)
             cfg.save_meeting(entry)
             target_wav = cfg.meeting_paths(base)[1]
@@ -291,6 +324,8 @@ async def create_meeting(request: Request, file: UploadFile = File(...),
 
 @router.get("/api/meetings/{base}")
 def meeting_detail(request: Request, base: str):
+    if not _valid_base(base):
+        raise HTTPException(400, detail="invalid meeting id")
     row = next((r for r in cfg.read_meetings() if r["base"] == base), None)
     if row is None:
         raise HTTPException(404)
@@ -301,6 +336,8 @@ def meeting_detail(request: Request, base: str):
 
 @router.post("/api/meetings/{base}/retry")
 def retry_meeting(request: Request, base: str):
+    if not _valid_base(base):
+        raise HTTPException(400, detail="invalid meeting id")
     row = next((r for r in cfg.read_meetings() if r["base"] == base), None)
     if row is None:
         raise HTTPException(404)
@@ -318,6 +355,10 @@ def retry_meeting(request: Request, base: str):
 
 @router.delete("/api/meetings/{base}")
 def delete_meeting(request: Request, base: str):
+    if not _valid_base(base):
+        raise HTTPException(400, detail="invalid meeting id")
+    if not any(row["base"] == base for row in cfg.read_meetings()):
+        raise HTTPException(404)
     cfg.delete_meetings([base])
     return {"deleted": base}
 
@@ -327,6 +368,8 @@ def ask_agent(request: Request, payload: dict = Body(...)):
     question = str(payload.get("question") or "").strip()
     if not question:
         raise HTTPException(400, detail="empty question")
+    if len(question) > MAX_QUESTION_CHARS:
+        raise HTTPException(400, detail="question too long")
     try:
         answer, _warning = assistant.ask(
             question, _conf(request),

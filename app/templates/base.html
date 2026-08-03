@@ -44,7 +44,9 @@
         <span class="nav-label">{{ t("Settings") }}</span>
       </a>
     </nav>
-    <a class="btn btn-ghost btn-sm" href="/logout">{{ t("Log out") }}</a>
+    <form method="post" action="/logout" style="margin:0">
+      <button class="btn btn-ghost btn-sm" type="submit">{{ t("Log out") }}</button>
+    </form>
   </header>
   <main class="container">{% block content %}{% endblock %}</main>
   <script src="/static/app.js" defer></script>

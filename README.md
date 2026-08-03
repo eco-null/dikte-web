@@ -110,8 +110,8 @@ Requirements on the host:
 
 - **Python 3.10+** (developed and tested on 3.14).
 - **ffmpeg** on `PATH` (needed to convert uploads to WAV/MP3).
-- Set `DIKTE_WEB_PASSWORD` or read the password the app generates and prints
-  on first start (see *Authentication* below).
+- Set `DIKTE_WEB_PASSWORD` or read the password the app generates and stores
+  in `web_password` on first start (see *Authentication* below).
 
 ---
 
@@ -121,7 +121,7 @@ Requirements on the host:
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
-| `DIKTE_WEB_PASSWORD` | generated | The single login password. If unset, one is generated and stored in `web_password`, then printed to stderr. |
+| `DIKTE_WEB_PASSWORD` | generated | The single login password. If unset, one is generated and stored in `web_password` (0600 perms, never logged). |
 | `XDG_CONFIG_HOME` | `~/.config` | Base for `dikte/config.json`. |
 | `XDG_DATA_HOME` | `~/.local/share` | Base for `dikte/` data: history, meetings, recordings, `web_password`, `assistant.json`. |
 | `OPENAI_API_KEY` | — | Convenience env; Settings is the source of truth. |
@@ -182,8 +182,8 @@ dikte/
   expires after **7 days**.
 - The cookie is HMAC-signed with a per-process random pepper, so it cannot be
   forged across restarts.
-- If `DIKTE_WEB_PASSWORD` is not set, a random password is generated, saved to
-  `web_password`, and printed to the log on first start.
+- If `DIKTE_WEB_PASSWORD` is not set, a random password is generated and saved
+  to `web_password` (0600 perms); it is never logged.
 
 > **Security note:** this is a single-user app guarded by a single password.
 > Do not expose it to the public internet. Run it on your own network or behind
@@ -282,6 +282,27 @@ tests/                     # full suite (unit + web E2E)
 - This fork removes the Qt desktop UI and adds a FastAPI + HTMX web interface,
   single-password auth, background jobs, local whisper.cpp/llama.cpp support,
   and Docker packaging.
+
+## Security
+
+- **Single password + rate limiting.** The app is guarded by one shared
+  password (`DIKTE_WEB_PASSWORD`). Login is rate-limited per client IP
+  (5 failed attempts per 15 minutes → `429`), and the password is compared
+  with a constant-time check.
+- **Session cookie.** `dikte_session` is `HttpOnly`, `SameSite=Lax` and
+  `Secure` by default (`DIKTE_COOKIE_SECURE=1`). Set `DIKTE_COOKIE_SECURE=0`
+  only if you run over plain HTTP on a trusted network.
+- **TLS reverse proxy required.** The service binds to loopback only
+  (`127.0.0.1:8000`). Put it behind Caddy, nginx or Traefik with TLS and have
+  the proxy forward to `127.0.0.1:8000`. Do not expose port 8000 directly to
+  the internet.
+- **CSRF defense.** Mutating requests are checked against the same-origin
+  `Origin`/`Referer` header; cross-site requests are rejected with `403`.
+- **Markdown is sanitized.** Meeting minutes rendered as HTML are passed through
+  the nh3 HTML sanitizer, blocking stored XSS from transcript content.
+- **Keep the volume private.** The `dikte_data` volume holds API keys (in
+  `config.json`) and meeting recordings in plaintext. Back it up regularly and
+  keep it on filesystems only you can read.
 
 ## License
 

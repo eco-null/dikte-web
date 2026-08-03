@@ -833,14 +833,24 @@ def update_meeting(base, **changes):
 
 
 def delete_meetings(bases):
-    """Drop the rows and the files they point at."""
+    """Drop the rows that exist and the files they point at.
+
+    Only rows present in the index are touched, and a path that resolves
+    outside the meetings directory is skipped rather than unlinked.
+    """
     doomed = set(bases)
     if not doomed:
         return
-    _write_meetings([row for row in read_meetings() if row["base"] not in doomed])
+    rows = read_meetings()
+    doomed = {row["base"] for row in rows if row["base"] in doomed}
+    if not doomed:
+        return
+    _write_meetings([row for row in rows if row["base"] not in doomed])
+    root = MEETINGS_DIR.resolve()
     for base in doomed:
         for path in meeting_paths(base):
             try:
-                path.unlink(missing_ok=True)
+                if path.resolve().is_relative_to(root):
+                    path.unlink(missing_ok=True)
             except OSError:
                 pass

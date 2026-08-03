@@ -1,12 +1,21 @@
 """One password, a signed session cookie, and a generated fallback."""
 
+import io
 import os
 import unittest
 from unittest import mock
 
+from fastapi.testclient import TestClient
+
 import config as cfg
 from app import auth
+from app.main import app as fastapi_app
 from tests.support import DikteTest
+
+# httpx's TestClient will not carry a Secure cookie over plain http://testserver,
+# so the session would never stick in tests. The env-var default is "1" for
+# production TLS; tests opt out explicitly.
+os.environ["DIKTE_COOKIE_SECURE"] = "0"
 
 
 class Auth(DikteTest):
@@ -22,6 +31,40 @@ class Auth(DikteTest):
         self.assertTrue(p1)
         self.assertEqual(p1, p2)  # aynı dosyadan okur
         self.assertEqual((cfg.DATA_DIR / "web_password").read_text().strip(), p1)
+
+    def test_generated_password_is_0600_and_not_printed(self):
+        # The env one from conftest would shadow the fallback path.
+        captured = io.StringIO()
+        with mock.patch.dict(os.environ, {}, clear=True), \
+                mock.patch("sys.stderr", captured):
+            p1 = auth.password()
+            p2 = auth.password()
+        self.assertTrue(p1)
+        self.assertEqual(p1, p2)
+        self.assertEqual(captured.getvalue(), "",
+                         "generated password must not be logged")
+        if os.name != "nt":  # chmod POSIX-only, same as the rest of the suite
+            mode = (cfg.DATA_DIR / "web_password").stat().st_mode & 0o777
+            self.assertEqual(mode, 0o600)
+
+    def test_login_cookie_is_secure_when_enabled(self):
+        with mock.patch.dict(os.environ, {"DIKTE_COOKIE_SECURE": "1"}):
+            with TestClient(fastapi_app) as client:
+                resp = client.post("/login", data={"password": "test-password"},
+                                   follow_redirects=False)
+        self.assertEqual(resp.status_code, 303)
+        header = resp.headers["set-cookie"]
+        self.assertIn("Secure", header)
+        self.assertIn("HttpOnly", header)
+        self.assertIn("SameSite=lax", header)
+
+    def test_login_cookie_secure_can_be_disabled(self):
+        with mock.patch.dict(os.environ, {"DIKTE_COOKIE_SECURE": "0"}):
+            with TestClient(fastapi_app) as client:
+                resp = client.post("/login", data={"password": "test-password"},
+                                   follow_redirects=False)
+        self.assertEqual(resp.status_code, 303)
+        self.assertNotIn("Secure", resp.headers["set-cookie"])
 
     def test_a_session_round_trips(self):
         token = auth.new_session()

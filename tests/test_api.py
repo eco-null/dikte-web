@@ -410,6 +410,55 @@ class Chat(DikteTest):
             api.chat([{"role": "user", "content": "hi"}], "k", "m", "p")
 
 
+class SafeBaseUrl(DikteTest):
+    """chat() must not be pointed at a private or malformed address (SSRF)."""
+
+    def call(self, base_url, **kwargs):
+        return api.chat([{"role": "user", "content": "hi"}], "k", "m", "p",
+                        base_url=base_url, **kwargs)
+
+    def allows(self, base_url):
+        with fake_urlopen(chat_reply("ok")) as calls:
+            self.assertEqual(self.call(base_url), "ok")
+        self.assertEqual(len(calls), 1)
+
+    def rejects(self, base_url):
+        with self.assertRaises(api.ApiError) as caught:
+            self.call(base_url)
+        self.assertIn("refused", str(caught.exception))
+        return caught.exception
+
+    def test_the_metadata_address_is_refused(self):
+        self.rejects("http://169.254.169.254/v1")
+
+    def test_a_private_range_address_is_refused(self):
+        self.rejects("http://192.168.1.1/v1")
+
+    def test_a_loopback_literal_other_than_127_0_0_1_is_refused(self):
+        self.rejects("http://127.0.0.2/v1")
+
+    def test_the_documented_omniroute_host_is_allowed(self):
+        self.allows("http://host.docker.internal:20128/v1")
+
+    def test_an_explicit_local_agent_is_allowed(self):
+        self.allows("http://127.0.0.1:9999/v1")
+
+    def test_a_localhost_agent_is_allowed(self):
+        self.allows("http://localhost:20128/v1")
+
+    def test_a_scheme_less_url_is_refused(self):
+        self.rejects("host.docker.internal:20128/v1")
+
+    def test_a_file_url_is_refused(self):
+        self.rejects("file:///etc/passwd")
+
+    def test_a_non_http_scheme_is_refused(self):
+        self.rejects("ftp://192.168.1.1/v1")
+
+    def test_a_public_host_is_allowed(self):
+        self.allows(api.OPENROUTER_URL)
+
+
 class KeyStatus(DikteTest):
     def test_a_key_with_no_limit(self):
         with fake_urlopen({"data": {"limit": None, "usage": 3}}):

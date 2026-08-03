@@ -1,5 +1,6 @@
 """Every page renders, is gated, and carries working navigation."""
 
+import os
 import unittest
 
 from fastapi.testclient import TestClient
@@ -8,6 +9,11 @@ import config as cfg
 import i18n
 from app.main import app as fastapi_app
 from tests.support import DikteTest
+
+# httpx's TestClient will not carry a Secure cookie over plain http://testserver,
+# so the session would never stick in tests. The env-var default is "1" for
+# production TLS; tests opt out explicitly.
+os.environ["DIKTE_COOKIE_SECURE"] = "0"
 
 
 class PagesTest(DikteTest):
@@ -53,6 +59,23 @@ class PagesTest(DikteTest):
         self.client.cookies.clear()
         resp = self.client.get("/api/history")
         self.assertEqual(resp.status_code, 401)
+
+    def test_logout_works_via_post(self):
+        resp = self.client.post("/logout", follow_redirects=False)
+        self.assertEqual(resp.status_code, 303)
+        self.client.cookies.clear()
+        resp = self.client.get("/api/history")
+        self.assertEqual(resp.status_code, 401)
+
+    def test_login_rate_limit_returns_429_after_failures(self):
+        from app.routes import pages as pages_routes
+        self.addCleanup(pages_routes._reset_login_failures)
+        for _ in range(pages_routes.LOGIN_MAX_FAILURES):
+            resp = self.client.post("/login", data={"password": "wrong"})
+            self.assertEqual(resp.status_code, 200)
+        resp = self.client.post("/login", data={"password": "wrong"})
+        self.assertEqual(resp.status_code, 429)
+        self.assertIn("Too many failed attempts", resp.text)
 
     def test_dictation_page_wires_copy_and_download(self):
         body = self.client.get("/dictate").text
@@ -101,6 +124,28 @@ class PagesTest(DikteTest):
         body = self.client.get("/files").text
         for marker in ("dropzone", "data-download", 'data-fmt="srt"'):
             self.assertIn(marker, body)
+
+    def test_files_dropzone_is_keyboard_accessible(self):
+        body = self.client.get("/files").text
+        self.assertIn('tabindex="0"', body)
+        self.assertIn('role="button"', body)
+
+    def test_authenticated_pages_disable_caching(self):
+        for path in ("/dictate", "/files", "/meetings", "/agent",
+                     "/history", "/settings"):
+            body = self.client.get(path).text
+            self.assertIn('http-equiv="Cache-Control" content="no-store"', body, path)
+
+    def test_meeting_detail_disable_caching(self):
+        cfg.save_meeting({"base": "20260101-120000", "status": "done",
+                          "title": "Toplantı", "model": "x"})
+        body = self.client.get("/meetings/20260101-120000").text
+        self.assertIn('http-equiv="Cache-Control" content="no-store"', body)
+
+    def test_login_page_disable_caching(self):
+        self.client.cookies.clear()
+        body = self.client.get("/login").text
+        self.assertIn('http-equiv="Cache-Control" content="no-store"', body)
 
     def test_meetings_page_has_action_buttons(self):
         cfg.save_meeting({"base": "20260101-120000", "status": "failed",

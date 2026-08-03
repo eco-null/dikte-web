@@ -411,7 +411,9 @@ def llm_quants(repo, refresh=False):
 
 
 def whisper_model_path(name):
-    return MODELS_DIR / "whisper" / name
+    # The same confinement llm_model_path does below: whatever path the caller
+    # handed in, only its basename may land inside the models directory.
+    return MODELS_DIR / "whisper" / name.rsplit("/", 1)[-1]
 
 
 def llm_model_path(name):

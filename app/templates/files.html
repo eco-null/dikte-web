@@ -1,8 +1,9 @@
 {% extends "base.html" %}
+{% block head %}<meta http-equiv="Cache-Control" content="no-store">{% endblock %}
 {% block content %}
 <section class="card">
   <h1>{{ t("Files") }}</h1>
-  <div class="dropzone" id="dropzone">
+  <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="{{ t('Choose a file to transcribe') }}">
     <svg class="icon" viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
     <p class="muted">{{ t("Drop an audio or video file, or click to browse") }}</p>
     <input type="file" id="file" name="file" accept="audio/*,video/*" required hidden form="file-form">
@@ -29,6 +30,12 @@
   const drop = document.getElementById("dropzone");
   const file = document.getElementById("file");
   drop.addEventListener("click", () => file.click());
+  drop.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      file.click();
+    }
+  });
   drop.addEventListener("dragover", (e) => { e.preventDefault(); drop.classList.add("over"); });
   drop.addEventListener("dragleave", () => drop.classList.remove("over"));
   drop.addEventListener("drop", (e) => {
@@ -38,8 +45,12 @@
   });
   document.getElementById("file-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const fd = new FormData(e.target);
     const stage = document.getElementById("stage");
+    if (!file.files.length) {
+      stage.textContent = "Choose a file to transcribe first.";
+      return;
+    }
+    const fd = new FormData(e.target);
     const bar = document.getElementById("progress-bar");
     document.getElementById("progress").hidden = false;
     stage.textContent = "Uploading…";

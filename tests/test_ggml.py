@@ -109,6 +109,14 @@ class GgmlCatalog(DikteTest):
             quants = ggml.llm_quants("ggml-org/gemma-3-4b-it-GGUF")
         self.assertEqual([q.name for q in quants], ["m.gguf"])
 
+    def test_whisper_model_path_stays_inside_the_models_dir(self):
+        """A user-supplied model name cannot walk out of MODELS_DIR."""
+        path = ggml.whisper_model_path("../../evil.bin")
+        self.assertEqual(path, ggml.MODELS_DIR / "whisper" / "evil.bin")
+        self.assertTrue(path.is_relative_to(ggml.MODELS_DIR))
+        self.assertEqual(ggml.llm_model_path("repo/../../other.gguf"),
+                         ggml.MODELS_DIR / "llm" / "other.gguf")
+
     def test_installed_whisper_models(self):
         d = ggml.MODELS_DIR / "whisper"
         d.mkdir(parents=True, exist_ok=True)

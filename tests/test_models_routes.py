@@ -93,6 +93,35 @@ class ModelsTest(DikteTest):
         fresh = cfg.Config()
         self.assertEqual(fresh["local_model"], "ggml-small.bin")
 
+    def test_llm_install_rejects_a_repo_outside_the_allowlist(self):
+        with mock.patch("ggml.llm_repos",
+                        return_value=["ggml-org/gemma-3-4b-it-GGUF"]):
+            resp = self.client.post(
+                "/api/models/install",
+                json={"kind": "llm", "repo": "evil/llama",
+                      "name": "x-Q4_K_M.gguf"})
+        self.assertEqual(resp.status_code, 400)
+
+    def test_llm_install_accepts_a_known_repo(self):
+        item = hub.Item("x-Q4_K_M.gguf", "https://x/s", 100, "a")
+        with _files_reply([item]):
+            with mock.patch("ggml.llm_repos",
+                            return_value=["ggml-org/gemma-3-4b-it-GGUF"]), \
+                    mock.patch("ggml.download", return_value=True):
+                resp = self.client.post(
+                    "/api/models/install",
+                    json={"kind": "llm", "repo": "ggml-org/gemma-3-4b-it-GGUF",
+                          "name": "x-Q4_K_M.gguf"})
+                job = self._wait(resp.json()["job_id"])
+        self.assertEqual(job["status"], "done", job)
+        fresh = cfg.Config()
+        self.assertEqual(fresh["local_llm_model"], "x-Q4_K_M.gguf")
+
+    def test_program_install_rejects_an_unknown_program(self):
+        resp = self.client.post("/api/models/install",
+                                json={"kind": "program", "name": "evil"})
+        self.assertEqual(resp.status_code, 400)
+
     def _wait(self, job_id, timeout=10):
         deadline = time.time() + timeout
         while time.time() < deadline:

@@ -119,6 +119,11 @@ def _ask_http(prompt, conf, name, base_url, model, on_stage):
     history = read_messages(name, conf["assistant_session_minutes"] * 60)
     messages = history + [{"role": "user", "content": prompt}]
     try:
+        if name == "omniroute":
+            # The OmniRoute base URL is user-editable; refuse a private or
+            # malformed one here as well as inside api.chat, so the address is
+            # checked before any request is shaped.
+            api._assert_safe_url(base_url)
         answer = api.chat(
             messages,
             conf.omniroute_key() if name == "omniroute" else conf.openrouter_key(),

@@ -239,7 +239,7 @@ input:focus, textarea:focus, select:focus { border-color: var(--color-primary); 
 
 .btn-ghost { background: transparent; border-color: transparent; color: var(--color-muted); }
 .btn-ghost:hover { background: var(--color-bg-elev); border-color: var(--color-border); color: var(--color-foreground); }
-.btn-sm { min-height: 32px; padding: var(--space-1) var(--space-3); font-size: var(--text-sm); }
+.btn-sm { min-height: 40px; padding: var(--space-1) var(--space-3); font-size: var(--text-sm); }
 .btn-block { display: flex; width: 100%; }
 .btn-icon {
   display: inline-flex;

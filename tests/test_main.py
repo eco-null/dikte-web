@@ -1,12 +1,19 @@
 """The FastAPI shell: auth gate, /healthz, static files."""
 
+import os
 import unittest
+from unittest import mock
 
 from fastapi.testclient import TestClient
 
 import config as cfg
 from app.main import app as fastapi_app
 from tests.support import DikteTest
+
+# httpx's TestClient will not carry a Secure cookie over plain http://testserver,
+# so the session would never stick in tests. The env-var default is "1" for
+# production TLS; tests opt out explicitly.
+os.environ["DIKTE_COOKIE_SECURE"] = "0"
 
 
 class MainTest(DikteTest):
@@ -43,6 +50,42 @@ class MainTest(DikteTest):
         resp = self.client.get("/", follow_redirects=False)
         self.assertEqual(resp.status_code, 303)
         self.assertEqual(resp.headers["location"], "/dictate")
+
+    def test_healthz_hides_internal_error_details(self):
+        with mock.patch.object(cfg, "Config", side_effect=RuntimeError("boom")):
+            resp = self.client.get("/healthz")
+        self.assertEqual(resp.status_code, 500)
+        self.assertEqual(resp.json(),
+                         {"ok": False, "error": "settings unavailable"})
+        self.assertNotIn("boom", resp.text)
+
+    def test_markdown_filter_strips_script(self):
+        render = fastapi_app.state.templates.env.filters["markdown"]
+        html = render('<script>alert(1)</script>**bold** '
+                      '<img src=x onerror=alert(2)>')
+        self.assertNotIn("<script", html)
+        self.assertNotIn("onerror", html)
+        self.assertIn("<strong>bold</strong>", html)
+
+    def test_mutating_request_with_mismatched_origin_is_rejected(self):
+        self.client.post("/login", data={"password": "test-password"})
+        resp = self.client.post("/api/history/clear",
+                                headers={"Origin": "https://evil.example"})
+        self.assertEqual(resp.status_code, 403)
+        self.assertEqual(resp.json()["detail"], "Forbidden: cross-site request")
+
+    def test_mutating_request_with_no_origin_is_allowed(self):
+        # TestClient sends no Origin/Referer by default; a non-browser client
+        # is allowed through (the login gate still demands a session).
+        self.client.post("/login", data={"password": "test-password"})
+        resp = self.client.post("/api/history/clear")
+        self.assertEqual(resp.status_code, 200)
+
+    def test_same_origin_mutating_request_is_allowed(self):
+        self.client.post("/login", data={"password": "test-password"})
+        resp = self.client.post("/api/history/clear",
+                                headers={"Origin": "http://testserver"})
+        self.assertEqual(resp.status_code, 200)
 
 
 if __name__ == "__main__":

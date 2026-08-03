@@ -35,6 +35,8 @@
     try {
       stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     } catch (err) {
+      stopStream();
+      setBusy(false);
       stage.textContent = "Microphone error: " + err;
       return;
     }

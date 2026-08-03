@@ -9,6 +9,9 @@ import pathlib
 import tempfile
 
 os.environ["DIKTE_WEB_PASSWORD"] = "test-password"
+# TestClient speaks http://testserver, and httpx will not send a Secure cookie
+# over plain http; disable the production Secure flag so session tests work.
+os.environ["DIKTE_COOKIE_SECURE"] = "0"
 _DATA = pathlib.Path(tempfile.mkdtemp(prefix="dikte-web-test-"))
 os.environ["XDG_CONFIG_HOME"] = str(_DATA / "config")
 os.environ["XDG_DATA_HOME"] = str(_DATA / "data")

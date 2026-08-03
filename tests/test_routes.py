@@ -5,9 +5,13 @@ until a job is finished: the with-block around a request closes before the
 thread's API calls happen otherwise.
 """
 
+import io
+import os
 import time
 import unittest
 from unittest import mock
+
+from fastapi import HTTPException
 
 import config as cfg
 
@@ -56,6 +60,18 @@ class Dictation(RouteTest):
                 job = self.wait_job(resp.json()["job_id"])
         self.assertEqual(job["status"], "done")
         self.assertIn("merhaba", job["result"]["text"])
+
+    def test_a_recording_longer_than_the_limit_fails(self):
+        clip = make_wav(self.path("long.wav"), speech(1.0))
+        with mock.patch("filetranscribe._to_wav", return_value=str(clip)), \
+                mock.patch("filetranscribe.wav_seconds",
+                           return_value=4 * 3600 + 1):
+            resp = self.client.post(
+                "/api/dictate",
+                files={"audio": ("rec.webm", b"fake-webm", "audio/webm")})
+            job = self.wait_job(resp.json()["job_id"])
+        self.assertEqual(job["status"], "failed")
+        self.assertIn("4 hour limit", job["error"])
 
     def test_second_job_while_busy_is_409(self):
         held = {}
@@ -148,6 +164,25 @@ class Files(RouteTest):
         self.assertEqual(dl.status_code, 200)
         self.assertIn("dosya metni", dl.text)
 
+    def test_a_file_longer_than_the_limit_fails(self):
+        clip = make_wav(self.path("long.wav"), speech(1.0))
+        with mock.patch("filetranscribe._to_wav", return_value=str(clip)), \
+                mock.patch("filetranscribe.wav_seconds",
+                           return_value=4 * 3600 + 1), \
+                mock.patch("filetranscribe._to_mp3",
+                           side_effect=lambda path, *a, **k: path), \
+                mock.patch("filetranscribe.shutil.which",
+                           return_value="/usr/bin/ffmpeg"), \
+                mock.patch("filetranscribe.api.transcribe",
+                           return_value="dosya metni"):
+            resp = self.client.post(
+                "/api/files/transcribe",
+                files={"file": ("clip.mp4", b"fake", "video/mp4")},
+                data={"timestamps": "", "cleanup": ""})
+            job = self.wait_job(resp.json()["job_id"])
+        self.assertEqual(job["status"], "failed")
+        self.assertIn("4 hour limit", job["error"])
+
 
 class Downloads(RouteTest):
     def test_download_404_for_unknown_job(self):
@@ -173,6 +208,22 @@ class Downloads(RouteTest):
                 "/api/dictate",
                 files={"audio": ("big.webm", b"x" * 100, "audio/webm")})
         self.assertEqual(resp.status_code, 413)
+
+    def test_an_upload_streamed_past_the_limit_is_413(self):
+        import app.routes.api as api_routes
+        upload = mock.Mock()
+        upload.size = None                  # the client declared no length
+        upload.filename = "big.webm"
+        upload.file = io.BytesIO(b"x" * 100)
+        leak = self.path("leak.bin")
+        with mock.patch.object(api_routes, "MAX_UPLOAD", 4), \
+                mock.patch("app.routes.api.tempfile.mkstemp",
+                           return_value=(os.open(os.devnull, os.O_RDONLY),
+                                         str(leak))):
+            with self.assertRaises(HTTPException) as cm:
+                api_routes._save_upload(upload)
+        self.assertEqual(cm.exception.status_code, 413)
+        self.assertFalse(leak.exists(), "413 left the temp upload behind")
 
 
 class Meetings(RouteTest):
@@ -202,7 +253,16 @@ class Meetings(RouteTest):
         self.assertEqual(resp.status_code, 200)
         self.assertNotIn(base, [r["base"] for r in cfg.read_meetings()])
         resp = self.client.delete(f"/api/meetings/{base}")
-        self.assertEqual(resp.status_code, 200)  # idempotent
+        self.assertEqual(resp.status_code, 404)  # deleting one that is gone
+
+    def test_meeting_delete_with_a_traversal_base_is_rejected(self):
+        victim = cfg.meeting_paths("..\\..\\etc\\somefile")[0].resolve()
+        victim.parent.mkdir(parents=True, exist_ok=True)
+        victim.write_text("keep me", encoding="utf-8")
+        resp = self.client.delete("/api/meetings/..%5C..%5Cetc%5Csomefile")
+        self.assertEqual(resp.status_code, 400)
+        self.assertTrue(victim.exists(),
+                        "traversal deleted a file outside the meetings dir")
 
     def test_meeting_detail_404(self):
         resp = self.client.get("/api/meetings/19990101-000000")
@@ -271,6 +331,11 @@ class Agent(RouteTest):
 
     def test_an_empty_question_is_rejected(self):
         resp = self.client.post("/api/agent", json={"question": "  "})
+        self.assertEqual(resp.status_code, 400)
+
+    def test_a_question_over_4000_characters_is_rejected(self):
+        with fake_urlopen({"choices": [{"message": {"content": "cevap"}}]}):
+            resp = self.client.post("/api/agent", json={"question": "a" * 4001})
         self.assertEqual(resp.status_code, 400)
 
 

@@ -2,6 +2,9 @@
 buradan sunulan her şey zaten oturumludur."""
 
 import hmac
+import os
+import threading
+import time
 
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
@@ -9,6 +12,11 @@ from fastapi.responses import RedirectResponse
 from app import auth
 
 router = APIRouter()
+
+LOGIN_MAX_FAILURES = 5
+LOGIN_WINDOW = 15 * 60  # seconds
+_login_failures = {}  # client ip -> [failure timestamps]
+_login_failures_lock = threading.Lock()
 
 SECTIONS = {
     "Transcription": ["ui_language", "transcribe_provider",
@@ -38,11 +46,50 @@ SECTIONS = {
 }
 
 
-def _render(request, template, context=None):
+def _env_bool(name, default):
+    """settings.py ile aynı bool zorlaması: 1/true/on/yes -> True."""
+    return str(os.environ.get(name, default)).lower() in ("1", "true", "on", "yes")
+
+
+def _render(request, template, context=None, status_code=200):
     ctx = dict(context or {})
     ctx.setdefault("current_path", request.url.path)
     return request.app.state.templates.TemplateResponse(
-        request, template, ctx)
+        request, template, ctx, status_code=status_code)
+
+
+def _client_ip(request):
+    return request.client.host if request.client else ""
+
+
+def _too_many_login_failures(ip):
+    """En fazla LOGIN_MAX_FAILURES başarısız deneme / LOGIN_WINDOW / IP."""
+    with _login_failures_lock:
+        now = time.time()
+        stamps = [ts for ts in _login_failures.get(ip, [])
+                  if now - ts < LOGIN_WINDOW]
+        if not stamps:
+            _login_failures.pop(ip, None)
+            return False
+        _login_failures[ip] = stamps
+        return len(stamps) >= LOGIN_MAX_FAILURES
+
+
+def _record_login_failure(ip):
+    with _login_failures_lock:
+        now = time.time()
+        stamps = [ts for ts in _login_failures.get(ip, [])
+                  if now - ts < LOGIN_WINDOW]
+        stamps.append(now)
+        _login_failures[ip] = stamps
+
+
+def _reset_login_failures(ip=None):
+    with _login_failures_lock:
+        if ip is None:
+            _login_failures.clear()
+        else:
+            _login_failures.pop(ip, None)
 
 
 @router.get("/")
@@ -59,16 +106,26 @@ def login_page(request: Request):
 
 @router.post("/login")
 def login_post(request: Request, password: str = Form("")):
+    ip = _client_ip(request)
+    if _too_many_login_failures(ip):
+        return _render(request, "login.html",
+                       {"error": "Too many failed attempts. Try again later."},
+                       status_code=429)
     if not hmac.compare_digest(password, auth.password()):
+        _record_login_failure(ip)
         return _render(request, "login.html",
                        {"error": "Wrong password."})
+    _reset_login_failures(ip)
     response = RedirectResponse("/dictate", status_code=303)
     response.set_cookie(auth.COOKIE, auth.new_session(), httponly=True,
-                        samesite="lax", max_age=auth.SESSION_HOURS * 3600)
+                        samesite="lax",
+                        secure=_env_bool("DIKTE_COOKIE_SECURE", "1"),
+                        max_age=auth.SESSION_HOURS * 3600)
     return response
 
 
 @router.get("/logout")
+@router.post("/logout")
 def logout():
     response = RedirectResponse("/login", status_code=303)
     response.delete_cookie(auth.COOKIE)

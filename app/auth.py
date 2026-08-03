@@ -1,7 +1,7 @@
 """Tek şifre login: imzalı, httponly session cookie.
 
 Şifre DIKTE_WEB_PASSWORD env'inden gelir. Boşsa ilk çalıştırmada üretilir,
-data dizinine (web_password) yazılır ve stderr'e basılır. Cookie, per-process
+data dizinine (web_password) 0600 izinleriyle yazılır. Cookie, per-process
 bir pepper ile HMAC imzalıdır.
 """
 
@@ -32,10 +32,10 @@ def password():
     generated = secrets.token_urlsafe(9)
     try:
         cfg.DATA_DIR.mkdir(parents=True, exist_ok=True)
-        (cfg.DATA_DIR / "web_password").write_text(generated)
-        print(f"dikte-web: DIKTE_WEB_PASSWORD unset; generated password: "
-              f"{generated} (stored in {cfg.DATA_DIR / 'web_password'})",
-              file=sys.stderr)
+        target = cfg.DATA_DIR / "web_password"
+        fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+        with os.fdopen(fd, "w") as fh:
+            fh.write(generated)
     except OSError:
         print("dikte-web: no password configured and could not store one", file=sys.stderr)
     return generated
