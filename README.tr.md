@@ -92,6 +92,47 @@ tasarlanmıştır.
 İmaj **ffmpeg** kurar, yani her türlü ses/video dönüşümü kutudan çıktığı gibi
 çalışır. Yüklemeler 1 GB ile sınırlıdır (`DIKTE_MAX_UPLOAD`).
 
+> **Erişim:** `docker-compose.yml` servisi yalnızca **loopback**'e bağlar
+> (`127.0.0.1:8000`). Önüne bir şey koymadıkça ana makinenin dışından
+> erişilemez. İki seçenek aşağıda.
+
+### Cloudflare Tunnel ile yayınla (ters proxy gerekmez)
+
+Cloudflare'da bir alan adın varsa `cloudflared` TLS'i Cloudflare kenarında
+sonlandırır ve loopback portuna tünel açar — çalıştırman gereken bir ters
+proxy yok:
+
+1. Ana makineye `cloudflared` kur (bkz.
+   [developers.cloudflare.com](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)).
+2. Giriş yap ve tünel oluştur (bir kez):
+   ```bash
+   cloudflared tunnel login
+   cloudflared tunnel create dikte-web
+   ```
+3. `~/.cloudflared/config.yml` dosyasını yapılandır:
+   ```yaml
+   tunnel: dikte-web
+   credentials-file: /home/KULLANICI/.cloudflared/KULLANICIID.json
+
+   ingress:
+     - hostname: dikte.ornek.com
+       service: http://localhost:8000
+     - service: http_status:404
+   ```
+4. DNS adını tünele bağla, sonra çalıştır (kalıcılık için systemd servisi
+   olarak):
+   ```bash
+   cloudflared tunnel route dns dikte-web dikte.ornek.com
+   cloudflared tunnel run dikte-web
+   ```
+5. `https://dikte.ornek.com` adresini aç ve şifreyle giriş yap.
+
+Uygulama, login sınırlaması için Cloudflare'ın `CF-Connecting-IP` başlığını
+zaten kullanır; böylece her gerçek ziyaretçi kendi deneme bütçesini alır.
+`DIKTE_COOKIE_SECURE=1`'i açık bırak (varsayılan) — Cloudflare HTTPS sunar,
+`Secure` çerez çalışır. Ek olarak 8000 portunu internete **açma**; tünel tek
+giriş noktasıdır.
+
 ### OmniRoute varsayılanı
 
 `host.docker.internal`, Docker ana makinesine çözümlenir (compose bunu
@@ -294,10 +335,12 @@ tests/                     # tam takım (birim + web E2E)
   varsayılan olarak `Secure`'dur (`DIKTE_COOKIE_SECURE=1`). `Secure` bayrağını
   yalnızca güvenilir bir ağda düz HTTP üzerinden çalışıyorsan kapat
   (`DIKTE_COOKIE_SECURE=0`).
-- **TLS ters proxy gerekli.** Servis yalnızca loopback'e bağlanır
-  (`127.0.0.1:8000`). Uygulamayı Caddy, nginx veya Traefik gibi TLS'li bir ters
-  proxy arkasına al ve proxy'nin `127.0.0.1:8000`'e iletmesini sağla. 8000
-  portunu doğrudan internete açma.
+- **TLS gerekli — ama ters proxy şart değil.** Servis yalnızca loopback'e
+  bağlanır (`127.0.0.1:8000`). Önüne TLS'li bir Caddy/nginx/Traefik proxy koy
+  ya da — en basiti — yukarıda anlatıldığı gibi bir [Cloudflare Tunnel
+  (`cloudflared`)](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
+  ile yayınla; TLS'i Cloudflare kenarında sonlandırır ve loopback portuna
+  tünel açar. 8000 portunu doğrudan internete açma.
 - **CSRF koruması.** Değiştirici istekler aynı kökenden gelen
   `Origin`/`Referer` başlığına göre denetlenir; siteler arası istekler `403` ile
   reddedilir.

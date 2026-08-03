@@ -92,6 +92,46 @@ own network, e.g. a local LLM server.
 The image installs **ffmpeg**, so any audio/video conversion works out of the
 box. Uploads are capped at 1 GB (`DIKTE_MAX_UPLOAD`).
 
+> **Exposure:** `docker-compose.yml` binds the service to **loopback only**
+> (`127.0.0.1:8000`). It is not reachable from outside the host until you put
+> something in front of it. Two options below.
+
+### Expose it with a Cloudflare Tunnel (no reverse proxy needed)
+
+If you have a domain on Cloudflare, `cloudflared` terminates TLS at
+Cloudflare's edge and tunnels to the loopback port — no reverse proxy to run:
+
+1. Install `cloudflared` on the host (see
+   [developers.cloudflare.com](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/)).
+2. Log in and create a tunnel (one-time):
+   ```bash
+   cloudflared tunnel login
+   cloudflared tunnel create dikte-web
+   ```
+3. Configure `~/.cloudflared/config.yml`:
+   ```yaml
+   tunnel: dikte-web
+   credentials-file: /home/USER/.cloudflared/USERID.json
+
+   ingress:
+     - hostname: dikte.example.com
+       service: http://localhost:8000
+     - service: http_status:404
+   ```
+4. Route the DNS name to the tunnel, then run it (as a systemd service for
+   persistence):
+   ```bash
+   cloudflared tunnel route dns dikte-web dikte.example.com
+   cloudflared tunnel run dikte-web
+   ```
+5. Open `https://dikte.example.com` and log in.
+
+The app already trusts Cloudflare's `CF-Connecting-IP` header for login rate
+limiting, so each real visitor gets their own attempt budget. Keep
+`DIKTE_COOKIE_SECURE=1` (the default) — Cloudflare serves HTTPS, so the
+`Secure` cookie works. Do **not** expose port 8000 to the internet in addition;
+the tunnel is the only entry point.
+
 ### The OmniRoute default
 
 `host.docker.internal` resolves to the Docker host machine (compose maps it
@@ -292,10 +332,12 @@ tests/                     # full suite (unit + web E2E)
 - **Session cookie.** `dikte_session` is `HttpOnly`, `SameSite=Lax` and
   `Secure` by default (`DIKTE_COOKIE_SECURE=1`). Set `DIKTE_COOKIE_SECURE=0`
   only if you run over plain HTTP on a trusted network.
-- **TLS reverse proxy required.** The service binds to loopback only
-  (`127.0.0.1:8000`). Put it behind Caddy, nginx or Traefik with TLS and have
-  the proxy forward to `127.0.0.1:8000`. Do not expose port 8000 directly to
-  the internet.
+- **TLS required — but no reverse proxy needed.** The service binds to loopback
+  only (`127.0.0.1:8000`). Put a Caddy/nginx/Traefik proxy in front with TLS,
+  or — simplest — expose it through a [Cloudflare Tunnel
+  (`cloudflared`)](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/)
+  as described above, which terminates TLS at Cloudflare's edge and tunnels to
+  the loopback port. Do not expose port 8000 directly to the internet.
 - **CSRF defense.** Mutating requests are checked against the same-origin
   `Origin`/`Referer` header; cross-site requests are rejected with `403`.
 - **Markdown is sanitized.** Meeting minutes rendered as HTML are passed through

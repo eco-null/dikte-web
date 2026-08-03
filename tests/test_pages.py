@@ -77,6 +77,24 @@ class PagesTest(DikteTest):
         self.assertEqual(resp.status_code, 429)
         self.assertIn("Too many failed attempts", resp.text)
 
+    def test_login_rate_limit_uses_the_proxy_client_ip(self):
+        # cloudflared altında gerçek istemci IP'si CF-Connecting-IP'tedir;
+        # iki farklı başlık ayrı sınırlama kovalarına düşmeli.
+        from app.routes import pages as pages_routes
+        self.addCleanup(pages_routes._reset_login_failures)
+        headers = {"CF-Connecting-IP": "203.0.113.1"}
+        for _ in range(pages_routes.LOGIN_MAX_FAILURES):
+            resp = self.client.post("/login", data={"password": "wrong"},
+                                    headers=headers)
+            self.assertEqual(resp.status_code, 200)
+        resp = self.client.post("/login", data={"password": "wrong"},
+                                headers=headers)
+        self.assertEqual(resp.status_code, 429)
+        # Farklı bir IP aynı pencere içinde hâlâ deneyebilir.
+        other = self.client.post("/login", data={"password": "wrong"},
+                                 headers={"CF-Connecting-IP": "203.0.113.2"})
+        self.assertEqual(other.status_code, 200)
+
     def test_dictation_page_wires_copy_and_download(self):
         body = self.client.get("/dictate").text
         self.assertIn('data-copy', body)

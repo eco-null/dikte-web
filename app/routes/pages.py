@@ -59,7 +59,13 @@ def _render(request, template, context=None, status_code=200):
 
 
 def _client_ip(request):
-    return request.client.host if request.client else ""
+    """Gerçek istemci IP'si: cloudflared/ters proxy altında doğrudan
+    bağlantı host'un değil proxy'nin IP'sidir, o yüzden proxy'nin koyduğu
+    başlık önce okunur. Doğrulama yok ama değer yalnızca bir sınırlama
+    anahtarıdır, kimlik doğrulama değildir."""
+    forwarded = request.headers.get("cf-connecting-ip") or \
+        (request.headers.get("x-forwarded-for") or "").split(",", 1)[0].strip()
+    return forwarded or (request.client.host if request.client else "")
 
 
 def _too_many_login_failures(ip):
