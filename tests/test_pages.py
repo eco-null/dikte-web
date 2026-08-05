@@ -267,6 +267,20 @@ class PagesTest(DikteTest):
         self.assertIn('name="meeting_provider"', body)
         self.assertIn('name="meeting_openrouter_model"', body)
 
+    def test_settings_has_no_save_button_and_autosaves(self):
+        import re
+        body = self.client.get("/settings").text
+        form = re.search(r'<form id="settings-form".*?</form>', body, re.S).group(0)
+        self.assertNotIn('type="submit"', form)
+        self.assertIn("Settings are saved automatically", body)
+        self.assertIn("function saveNow", body)
+        self.assertIn("scheduleSave", body)
+        self.assertIn("beforeunload", body)
+
+    def test_settings_prefills_transcribe_prompt(self):
+        body = self.client.get("/settings").text
+        self.assertIn("Transcribe the audio faithfully", body)
+
     def test_hosted_model_fields_render_select(self):
         body = self.client.get("/settings").text
         self.assertIn('<select name="transcribe_openai_model"', body)

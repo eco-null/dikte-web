@@ -49,7 +49,7 @@ class Pipeline:
         self.stage.emit(t("Transcribing…"))
         target = conf.transcribe_target()
         raw = api.transcribe(target, wav_path, language=conf["language"],
-                             prompt=conf["transcribe_prompt"])
+                             prompt=conf.transcribe_prompt_text())
 
         if conf["filter_hallucinations"] and vad.looks_like_hallucination(raw, duration):
             self._discard(wav_path)

@@ -34,7 +34,6 @@
 <section class="card">
   <div class="settings-head">
     <h1>{{ t("Settings") }}</h1>
-    <button class="btn btn-primary" type="submit" form="settings-form">{{ t("Save") }}</button>
   </div>
   <form id="settings-form" class="settings-form">
     {% for service in services %}
@@ -111,7 +110,7 @@
     </fieldset>
 
     <div class="save-bar">
-      <button class="btn btn-primary" type="submit">{{ t("Save") }}</button>
+      <span class="save-hint">{{ t("Settings are saved automatically as you type.") }}</span>
       <p id="msg" class="stage save-msg" role="status"></p>
     </div>
   </form>
@@ -211,44 +210,65 @@
   }
 
   document.querySelectorAll("select.provider-select-el").forEach((sel) => {
-    sel.addEventListener("change", () => { applyProviderVisibility(); refreshProviderModels(); });
+    sel.addEventListener("change", () => { applyProviderVisibility(); refreshProviderModels(); scheduleSave(); });
   });
   applyProviderVisibility();
   refreshProviderModels();
   loadMicDevices();
 
-  document.getElementById("settings-form").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const btn = e.submitter || document.querySelector('#settings-form button[type="submit"]');
+  const form = document.getElementById("settings-form");
+  const msg = document.getElementById("msg");
+  let saveTimer = null;
+  let dirty = false;
+
+  function collectSettings() {
     const out = {};
-    for (const el of e.target.elements) {
+    for (const el of form.elements) {
       if (!el.name) continue;
       out[el.name] = el.value;
       if (el.dataset.kind === "bool") out[el.name] = el.value === "on";
     }
-    const msg = document.getElementById("msg");
+    return out;
+  }
+
+  async function saveNow() {
+    clearTimeout(saveTimer);
+    saveTimer = null;
+    if (!dirty) return;
+    dirty = false;
     msg.className = "stage save-msg";
-    msg.textContent = "Saving…";
-    if (btn) { btn.disabled = true; btn.textContent = "Saving…"; }
+    msg.textContent = "{{ t("Saving…") }}";
     try {
       const resp = await fetch("/api/settings", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ settings: out }),
+        body: JSON.stringify({ settings: collectSettings() }),
       });
       if (resp.ok) {
         msg.className = "stage save-msg save-ok";
-        msg.textContent = "Saved successfully.";
+        msg.textContent = "{{ t("Saved successfully.") }}";
       } else {
+        dirty = true;
         msg.className = "stage save-msg save-err";
         msg.textContent = (await resp.json()).detail || resp.status;
       }
     } catch (err) {
+      dirty = true;
       msg.className = "stage save-msg save-err";
-      msg.textContent = "Save failed: " + err;
+      msg.textContent = "{{ t("Save failed: {err}") }}".replace("{err}", String(err));
     }
-    if (btn) { btn.disabled = false; btn.textContent = "{{ t('Save') }}"; }
-  });
+  }
+
+  function scheduleSave() {
+    dirty = true;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveNow, 700);
+  }
+
+  form.addEventListener("input", scheduleSave);
+  form.addEventListener("change", scheduleSave);
+  form.addEventListener("submit", (e) => { e.preventDefault(); saveNow(); });
+  window.addEventListener("beforeunload", saveNow);
 
   async function loadModels() {
     const list = document.getElementById("models-list");

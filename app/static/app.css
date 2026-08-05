@@ -171,6 +171,7 @@ main { max-width: 900px; margin: 0 auto; padding: var(--space-5) var(--space-4) 
   gap: var(--space-3);
   margin-top: var(--space-4);
 }
+.save-hint { color: var(--color-muted); font-size: 0.9em; }
 .save-msg { min-height: 1.4em; margin: 0; }
 .save-ok { color: var(--color-success); font-weight: 500; }
 .save-err { color: var(--color-danger); font-weight: 500; }

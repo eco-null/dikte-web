@@ -253,6 +253,19 @@ class TranscribeTarget(DikteTest):
         # independent from the transcribe service
         self.assertNotEqual(mt.model, conf.transcribe_target().model)
 
+    def test_transcribe_prompt_falls_back_to_a_default(self):
+        conf = self.config(transcribe_provider="openai")
+        self.assertTrue(conf.transcribe_prompt_text().strip())
+        # the built-in default is not a glossary, so it must not leak into
+        # the cleanup prompt
+        self.assertEqual(conf.transcribe_glossary(), "")
+
+    def test_transcribe_prompt_user_text_wins(self):
+        conf = self.config(transcribe_provider="openai",
+                           transcribe_prompt="Terim: Proje Alfa")
+        self.assertEqual(conf.transcribe_prompt_text().strip(), "Terim: Proje Alfa")
+        self.assertEqual(conf.transcribe_glossary(), "Terim: Proje Alfa")
+
     def test_target_falls_back_to_env_key(self):
         from unittest import mock
         conf = self.config(transcribe_provider="openai",

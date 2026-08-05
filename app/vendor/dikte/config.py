@@ -362,6 +362,16 @@ da senin soracağın soruya verilecek bir yanıt yok.
 - İstek cevabı değiştirecek biçimde belirsizse, daha olası okumaya göre cevapla
   ve varsayımını bir yan cümlede söyle"""
 
+TRANSCRIBE_PROMPT_EN = """Transcribe the audio faithfully, in the language it
+is spoken. Write words exactly as they are said; do not clean up, paraphrase,
+translate or add anything. Keep names, numbers, acronyms and technical terms as
+they sound, and do not skip or shorten anything."""
+
+TRANSCRIBE_PROMPT_TR = """Ses kaydını olduğu gibi, konuşulduğu dilde yazıya dök.
+Söylenen kelimeleri aynen yaz; temizleme, özetleme, çevirme ya da ekleme yapma.
+İsimleri, sayıları, kısaltmaları ve teknik terimleri duyulduğu gibi koru; hiçbir
+şeyi atlama ya da kısaltma."""
+
 DEFAULTS = {
     "ui_language": "auto",          # auto | tr | en
     "openai_api_key": "",
@@ -375,7 +385,7 @@ DEFAULTS = {
     "groq_transcribe_model": "whisper-large-v3-turbo",
     "openrouter_transcribe_model": "openai/gpt-4o-transcribe",
     "language": "tr",
-    "transcribe_prompt": "",
+    "transcribe_prompt": "",           # empty -> language-specific default
 
     # --- whisper.cpp, on this machine ---------------------------------------
     # The program and the model are both fetched from Settings; empty means
@@ -742,7 +752,7 @@ class Config:
         follow the configured provider: the settings page asks about whichever
         provider its dropdown has moved to, which may not be saved yet.
         """
-        if service not in ("transcribe", "cleanup", "assistant"):
+        if service not in ("transcribe", "cleanup", "assistant", "meeting"):
             return None
         if provider not in ("openai", "groq", "openrouter", "omniroute", "local"):
             return None
@@ -793,7 +803,7 @@ class Config:
                       or default_file_cleanup_prompt())
         else:
             prompt = self["cleanup_prompt"].strip() or default_cleanup_prompt()
-        glossary = self["transcribe_prompt"].strip()
+        glossary = self.transcribe_glossary()
         if with_speakers:
             glossary = "\n".join(x for x in (glossary, self.participants()) if x)
         if glossary:
@@ -804,6 +814,19 @@ class Config:
         if with_speakers:
             prompt += SPEAKER_RULE_TR if turkish else SPEAKER_RULE_EN
         return prompt
+
+    def transcribe_prompt_text(self):
+        """The initial prompt sent to the speech model. An empty setting means
+        "use the built-in default", like every other prompt in the settings."""
+        return self["transcribe_prompt"].strip() or default_transcribe_prompt()
+
+    def transcribe_glossary(self):
+        """Only what the user actually typed; the built-in default is not a
+        glossary of terms, so it must not reach the cleanup prompt either."""
+        stored = self["transcribe_prompt"].strip()
+        if stored in (TRANSCRIBE_PROMPT_EN, TRANSCRIBE_PROMPT_TR):
+            return ""
+        return stored
 
     def assistant_prompt(self):
         return self["assistant_prompt"].strip() or default_assistant_prompt()
@@ -833,7 +856,7 @@ class Config:
 
     def meeting_hint(self):
         """The transcription hint: the dictation glossary plus the names."""
-        return "\n".join(x for x in (self["transcribe_prompt"].strip(),
+        return "\n".join(x for x in (self.transcribe_glossary(),
                                      self.participants()) if x)
 
     def speaker_names(self):
@@ -847,6 +870,10 @@ class Config:
 
 def _fingerprint(text):
     return hashlib.sha1(text.encode("utf-8")).hexdigest()
+
+
+def default_transcribe_prompt():
+    return TRANSCRIBE_PROMPT_TR if i18n.language() == "tr" else TRANSCRIBE_PROMPT_EN
 
 
 def default_cleanup_prompt():

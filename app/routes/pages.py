@@ -193,6 +193,7 @@ def settings_page(request: Request):
     services = [_service_spec(s) for s in SERVICE_ORDER]
     display = web_settings.present(request.app.state.conf)
     prompt_defaults = {
+        "transcribe_prompt": cfg.default_transcribe_prompt,
         "file_cleanup_prompt": cfg.default_file_cleanup_prompt,
         "cleanup_prompt": cfg.default_cleanup_prompt,
         "meeting_prompt": cfg.default_meeting_prompt,

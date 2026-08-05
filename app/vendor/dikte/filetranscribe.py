@@ -85,7 +85,7 @@ class FileTranscriber:
                             target,
                             chunk_path,
                             language=conf["language"],
-                            prompt=conf["transcribe_prompt"],
+                            prompt=conf.transcribe_prompt_text(),
                             aborter=self._abort,
                         )
                     ])
@@ -94,7 +94,7 @@ class FileTranscriber:
                         target,
                         chunk_path,
                         language=conf["language"],
-                        prompt=conf["transcribe_prompt"],
+                        prompt=conf.transcribe_prompt_text(),
                         aborter=self._abort,
                     ))
 
