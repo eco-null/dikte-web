@@ -290,6 +290,13 @@ class PagesTest(DikteTest):
         self.assertIn('<select name="assistant_openrouter_model"', body)
         self.assertIn('data-model-select', body)
 
+    def test_settings_keeps_a_stored_model_selected(self):
+        body = self.client.get("/settings").text
+        # a stored model must stay selected even when the provider list is
+        # empty (no key, offline), instead of collapsing to "Custom"
+        self.assertIn('select.value = current || "__custom__";', body)
+        self.assertIn("if (current && models.indexOf(current) === -1)", body)
+
     def test_omniroute_and_local_model_fields_are_text_inputs(self):
         body = self.client.get("/settings").text
         self.assertIn('<input name="transcribe_omniroute_model"', body)

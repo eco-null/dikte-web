@@ -157,10 +157,14 @@
     const custom = new Option("{{ t("Custom…") }}", "__custom__");
     const hasModels = models.length > 0;
     select.textContent = "";
-    if (current && !hasModels) select.appendChild(new Option(current, current, true, true));
+    // The stored model must stay selected even when the provider has no
+    // listing (no key, offline) or the model is not in the current list.
+    if (current && models.indexOf(current) === -1) {
+      select.appendChild(new Option(current, current, true, true));
+    }
     models.forEach((m) => select.appendChild(new Option(m, m)));
     select.appendChild(custom);
-    select.value = (hasModels && current && models.indexOf(current) !== -1) ? current : "__custom__";
+    select.value = current || "__custom__";
     syncPair(select, "input[data-model-input]");
   }
 
