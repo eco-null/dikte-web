@@ -301,5 +301,26 @@ class Pipeline(DikteTest):
         self.run_pipeline(minutes="We agreed to ship.")
         self.assertEqual(cfg.read_meetings()[0]["title"], "Meeting")
 
+    def test_the_minutes_use_the_cleanup_service_target(self):
+        self.conf["meeting_cleanup"] = False
+        self.conf["cleanup_provider"] = "groq"
+        self.conf["cleanup_groq_key"] = "sk-groq"
+        self.conf["cleanup_groq_model"] = "llama-3.3-70b-versatile"
+        called = {}
+
+        def cleanup(text, *args, **kwargs):
+            called["api_key"] = args[0] if args else kwargs.get("api_key", "")
+            called.update(kwargs)
+            return "# Kickoff\n\nAgreed."
+
+        with mock.patch.object(api, "transcribe_segments",
+                               return_value=[(0.0, 1.0, "hello")]), \
+                mock.patch.object(api, "cleanup", side_effect=cleanup):
+            meeting.MeetingPipeline(self.conf)._work(cfg.read_meetings()[0])
+        self.assertEqual(called["provider"], "groq")
+        self.assertEqual(called["service"], "Groq")
+        self.assertEqual(called["base_url"], "https://api.groq.com/openai/v1")
+        self.assertEqual(called["api_key"], "sk-groq")
+
 if __name__ == "__main__":
     unittest.main()

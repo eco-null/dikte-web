@@ -388,9 +388,11 @@ def ask_agent(request: Request, payload: dict = Body(...)):
         raise HTTPException(400, detail="empty question")
     if len(question) > MAX_QUESTION_CHARS:
         raise HTTPException(400, detail="question too long")
+    conf = _conf(request)
+    _hydrate_local(conf)
     try:
         answer, _warning = assistant.ask(
-            question, _conf(request),
+            question, conf,
             provider=str(payload.get("provider") or ""),
             model=str(payload.get("model") or ""),
         )

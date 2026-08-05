@@ -337,6 +337,7 @@ def _transcribe_request(target, audio_path, language, prompt, response_format,
     elif not target.api_key:
         raise ApiError(t("{service} API key is empty. Add it in Settings.",
                          service=target.service))
+    _assert_safe_url(target.base_url)
     fields = [("model", target.model), ("response_format", response_format)]
     if language and language != "auto":
         fields.append(("language", language))
@@ -480,6 +481,7 @@ def cleanup(text, api_key, model, system_prompt, reasoning="",
     if not api_key and provider not in ("local-llm", "omniroute"):
         raise ApiError(t("{service} API key is empty. Add it in Settings.",
                          service=service))
+    _assert_safe_url(base_url)
     payload = {
         "model": model,
         "temperature": 0,

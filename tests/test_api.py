@@ -237,6 +237,11 @@ class Transcribe(DikteTest):
             api.transcribe(OPENAI, self.wav)
         self.assertIn("parse", str(caught.exception))
 
+    def test_transcribe_rejects_a_private_base_url(self):
+        target = api.Target("openai", "OpenAI", "k", "http://192.168.1.5/v1", "m")
+        with self.assertRaises(api.ApiError):
+            api._transcribe_request(target, "/tmp/x.wav", "", "", "json")
+
 class TranscribeSegments(DikteTest):
     def setUp(self):
         super().setUp()
@@ -361,6 +366,10 @@ class Cleanup(DikteTest):
                 self.assertRaises(api.ApiError) as caught:
             api.cleanup("hello", "k", "m", "p")
         self.assertIn("OpenRouter", str(caught.exception))
+
+    def test_cleanup_rejects_a_private_base_url(self):
+        with self.assertRaises(api.ApiError):
+            api.cleanup("t", "k", "m", "sys", base_url="http://169.254.169.254/v1")
 
 class Chat(DikteTest):
     def test_the_history_is_sent_after_the_system_prompt(self):

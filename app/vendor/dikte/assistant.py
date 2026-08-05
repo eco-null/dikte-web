@@ -5,6 +5,7 @@ Masaüstünün Claude/Codex CLI yolları webapp'e taşınmaz.
 """
 
 import json
+import os
 import time
 
 import api
@@ -126,6 +127,11 @@ def _ask_http(prompt, conf, name, on_stage):
     else:
         base_url = conf[f"assistant_{name}_url"]
         key = conf[f"assistant_{name}_key"]
+        if not key:
+            env_name = {"openai": "OPENAI_API_KEY", "groq": "GROQ_API_KEY",
+                        "openrouter": "OPENROUTER_API_KEY",
+                        "omniroute": "OMNIROUTE_API_KEY"}.get(name)
+            key = os.environ.get(env_name, "") if env_name else ""
         model = conf[f"assistant_{name}_model"]
         key_required = name not in ("omniroute",)
         reasoning = conf["assistant_reasoning"]

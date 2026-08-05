@@ -99,6 +99,16 @@ class AssistantProvider(DikteTest):
         self.assertEqual(kwargs["model"], "gemma.gguf")
         self.assertIs(kwargs["key_required"], False)
 
+    def test_openrouter_key_falls_back_to_env(self):
+        conf = self.config(assistant_provider="openrouter",
+                           assistant_openrouter_key="",
+                           assistant_openrouter_model="m")
+        with mock.patch.dict(os.environ, {"OPENROUTER_API_KEY": "sk-env"}), \
+                mock.patch("api.chat", return_value="cevap") as chat:
+            assistant.ask("soru", conf)
+        args, kwargs = chat.call_args
+        self.assertEqual(args[1], "sk-env")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -95,18 +95,21 @@ class MeetingPipeline:
                 cfg.update_meeting(base, status="transcribed", error="")
 
             self._say(t("Writing the minutes…"))
+            target = self.conf.cleanup_target()
             minutes = api.cleanup(
                 transcript,
-                self.conf.openrouter_key(),
-                self.conf["meeting_model"],
+                target.api_key,
+                target.model,
                 self.conf.meeting_prompt(),
                 reasoning=self.conf["meeting_reasoning"],
-                base_url=self.conf["openrouter_base_url"],
+                base_url=target.base_url,
                 timeout=600,
+                provider=target.provider,
+                service=target.service,
             )
             title = self._write(doc_path, minutes, transcript, entry)
             cfg.update_meeting(base, status="done", error="", title=title,
-                               model=self.conf["meeting_model"])
+                               model=target.model)
             self._discard_audio(wav_path)
             return title
 

@@ -349,6 +349,19 @@ class Agent(RouteTest):
             resp = self.client.post("/api/agent", json={"question": "a" * 4001})
         self.assertEqual(resp.status_code, 400)
 
+    def test_local_agent_hydrates_the_llm_server(self):
+        conf = cfg.Config()
+        web_settings.apply(conf, {"assistant_provider": "local",
+                                  "assistant_local_model": "gemma.gguf"})
+        from app.main import app as fastapi_app
+        fastapi_app.state.conf = conf
+        with mock.patch("ggml.llm.configure") as llmc, \
+                mock.patch("api.serving", return_value="http://127.0.0.1:9001/v1"), \
+                mock.patch("api.chat", return_value="cevap"):
+            resp = self.client.post("/api/agent", json={"question": "merhaba"})
+        self.assertEqual(resp.status_code, 200, resp.text)
+        self.assertEqual(llmc.call_args.kwargs["model"], "gemma.gguf")
+
 class HistorySettings(RouteTest):
     def test_history_lists_and_clears(self):
         cfg.append_history({"ts": "now", "text": "kayıt", "raw": "kayıt"})
