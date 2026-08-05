@@ -167,6 +167,7 @@ main { max-width: 900px; margin: 0 auto; padding: var(--space-5) var(--space-4) 
 .auth-card { padding: var(--space-6); }
 .auth-brand { display: flex; align-items: center; justify-content: center; gap: var(--space-3); margin-bottom: var(--space-3); }
 .auth-brand h1 { margin: 0; }
+.auth-logo { border-radius: var(--radius-md); box-shadow: var(--shadow-md); }
 
 /* ---------- forms ---------- */
 

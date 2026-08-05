@@ -2,6 +2,10 @@
 
 > **[Read in English](README.md)** · [İngilizce okuyun](README.md)
 
+<p align="center">
+  <img src="app/static/logo.svg" alt="Dikte Web" width="128" height="128">
+</p>
+
 **Dikte Web**, tek kullanıcılı, kendi sunucunda barındırabileceğin (self-hosted)
 bir konuşmadan yazıya web uygulamasıdır. Linux için yazılmış
 [yusufipk/dikte](https://github.com/yusufipk/dikte) sesli dikte uygulamasının

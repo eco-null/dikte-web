@@ -2,6 +2,10 @@
 
 > **[Türkçe okuyun](README.tr.md)** · [Read in Turkish](README.tr.md)
 
+<p align="center">
+  <img src="app/static/logo.svg" alt="Dikte Web" width="128" height="128">
+</p>
+
 **Dikte Web** is a single-user, self-hosted speech-to-text web app. It is a web
 rewrite of [yusufipk/dikte](https://github.com/yusufipk/dikte) — a voice
 dictation app for Linux — that drops the Qt desktop shell and serves the same
