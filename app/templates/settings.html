@@ -241,6 +241,7 @@
     try {
       const resp = await fetch("/api/settings", {
         method: "POST",
+        keepalive: true,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ settings: collectSettings() }),
       });
@@ -262,13 +263,30 @@
   function scheduleSave() {
     dirty = true;
     clearTimeout(saveTimer);
-    saveTimer = setTimeout(saveNow, 700);
+    saveTimer = setTimeout(saveNow, 300);
   }
 
   form.addEventListener("input", scheduleSave);
   form.addEventListener("change", scheduleSave);
   form.addEventListener("submit", (e) => { e.preventDefault(); saveNow(); });
-  window.addEventListener("beforeunload", saveNow);
+  function flushOnLeave() {
+    if (!dirty) return;
+    try {
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon("/api/settings",
+          new Blob([JSON.stringify({ settings: collectSettings() })],
+                   { type: "application/json" }));
+        dirty = false;
+      } else {
+        saveNow();
+      }
+    } catch (err) { saveNow(); }
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) flushOnLeave();
+  });
+  window.addEventListener("pagehide", flushOnLeave);
+  window.addEventListener("beforeunload", flushOnLeave);
 
   async function loadModels() {
     const list = document.getElementById("models-list");

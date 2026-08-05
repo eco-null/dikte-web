@@ -275,7 +275,9 @@ class PagesTest(DikteTest):
         self.assertIn("Settings are saved automatically", body)
         self.assertIn("function saveNow", body)
         self.assertIn("scheduleSave", body)
-        self.assertIn("beforeunload", body)
+        self.assertIn("keepalive: true", body)
+        self.assertIn("visibilitychange", body)
+        self.assertIn("pagehide", body)
 
     def test_settings_prefills_transcribe_prompt(self):
         body = self.client.get("/settings").text
