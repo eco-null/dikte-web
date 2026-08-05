@@ -24,6 +24,7 @@ class RouteTest(DikteTest):
         fresh = cfg.Config()
         fresh["transcribe_openai_key"] = "sk-test"
         fresh["cleanup_openrouter_key"] = "sk-or-test"
+        fresh["assistant_openrouter_key"] = "sk-or-test"
         web_settings.apply(fresh, {"transcribe_provider": "openai",
                                    "openrouter_api_key": "sk-or-test",
                                    "cleanup_enabled": False})

@@ -1,12 +1,10 @@
 """Ajan'a soru sormak ve cevabı geri döndürmek. (webapp)
 
-İki provider, ikisi de HTTP: OpenRouter (yapılandırılmış anahtar üzerinden
-chat) ve OmniRoute (OpenAI-uyumlu yerel uç). Masaüstünün Claude/Codex CLI
-yolları webapp'e taşınmaz.
+Beş sağlayıcı: openai, groq, openrouter, omniroute ve yerel llama.cpp (local).
+Masaüstünün Claude/Codex CLI yolları webapp'e taşınmaz.
 """
 
 import json
-import os
 import time
 
 import api
@@ -14,7 +12,7 @@ import config as cfg
 from i18n import t
 
 SESSION_FILE = cfg.DATA_DIR / "assistant.json"
-PROVIDERS = ("openrouter", "omniroute")
+PROVIDERS = ("openai", "groq", "openrouter", "omniroute", "local")
 MAX_HISTORY = 24
 
 
@@ -32,7 +30,9 @@ def provider(conf):
 
 
 def display_name(conf):
-    return "OmniRoute" if provider(conf) == "omniroute" else "OpenRouter"
+    return {"openai": "OpenAI", "groq": "Groq", "openrouter": "OpenRouter",
+            "omniroute": "OmniRoute", "local": "Local llama.cpp"}.get(
+                provider(conf), provider(conf))
 
 
 # --- the conversation (orijinalden aynen) --------------------------------
@@ -105,33 +105,28 @@ def ask(prompt, conf, on_stage=None, should_stop=None, provider="", model=""):
     name = provider or conf["assistant_provider"]
     if name not in PROVIDERS:
         name = "openrouter"
-    if name == "omniroute":
-        base_url = os.environ.get("OMNIROUTE_BASE_URL") or conf["assistant_omniroute_base_url"]
-        return _ask_http(prompt, conf, "omniroute", base_url,
-                         model or conf["assistant_omniroute_model"], on_stage)
-    return _ask_http(prompt, conf, "openrouter", conf["openrouter_base_url"],
-                     model or conf["assistant_openrouter_model"], on_stage)
+    return _ask_http(prompt, conf, name, on_stage)
 
 
-def _ask_http(prompt, conf, name, base_url, model, on_stage):
+def _ask_http(prompt, conf, name, on_stage):
     if on_stage:
         on_stage(t("Thinking…"))
     history = read_messages(name, conf["assistant_session_minutes"] * 60)
     messages = history + [{"role": "user", "content": prompt}]
+    key = conf[f"assistant_{name}_key"]
+    base_url = conf[f"assistant_{name}_url"]
+    model = conf[f"assistant_{name}_model"]
+    api._assert_safe_url(base_url)
+    service = {"openai": "OpenAI", "groq": "Groq",
+               "openrouter": "OpenRouter", "omniroute": "OmniRoute",
+               "local": "Local llama.cpp"}.get(name, name)
+    key_required = name not in ("omniroute", "local")
     try:
-        if name == "omniroute":
-            # The OmniRoute base URL is user-editable; refuse a private or
-            # malformed one here as well as inside api.chat, so the address is
-            # checked before any request is shaped.
-            api._assert_safe_url(base_url)
         answer = api.chat(
-            messages,
-            conf.omniroute_key() if name == "omniroute" else conf.openrouter_key(),
-            model, conf.assistant_prompt(),
+            messages, key, model=model, system_prompt=conf.assistant_prompt(),
             reasoning=conf["assistant_reasoning"], base_url=base_url,
             timeout=conf["assistant_timeout"], provider=name,
-            service="OmniRoute" if name == "omniroute" else "OpenRouter",
-            key_required=(name == "openrouter"),
+            service=service, key_required=key_required,
         )
     except api.ApiError as exc:
         raise AssistantError(str(exc)) from exc
