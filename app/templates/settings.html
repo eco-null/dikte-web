@@ -52,7 +52,8 @@
         </label>
       </div>
       {% for p in service.providers %}
-      <div class="provider-fields" data-service="{{ service.key }}" data-provider="{{ p.name }}">
+      <div class="provider-fields" data-service="{{ service.key }}" data-provider="{{ p.name }}"
+           {% if settings[service.key ~ '_provider'] != p.name %}hidden{% endif %}>
         {% for suffix in ['url', 'key', 'model'] %}
         {% set fk = service.key ~ '_' ~ p.name ~ '_' ~ suffix %}
         {% if fk in fields %}
@@ -74,7 +75,7 @@
         </label>
         {% endif %}
         {% endfor %}
-        {% for lk in (['model','threads','gpu','preload','context','reasoning'] if p.name == 'local' else []) %}
+        {% for lk in (['threads','gpu','preload','context','reasoning'] if p.name == 'local' else []) %}
         {% set fk = service.key ~ '_local_' ~ lk %}
         {% if fk in fields %}
         <label class="field">{{ t(fk) }}
@@ -94,6 +95,11 @@
       {% if service.key == 'transcribe' %}
       {{ field_input('language') }}
       {% endif %}
+      {% if service.key == 'meeting' %}
+      <div class="meeting-options settings-grid">
+        {% for key in meeting_keys %}{{ field_input(key) }}{% endfor %}
+      </div>
+      {% endif %}
     </fieldset>
     {% endfor %}
 
@@ -101,13 +107,6 @@
       <legend>{{ t("General") }}</legend>
       <div class="settings-grid">
         {% for key in general_keys %}{{ field_input(key) }}{% endfor %}
-      </div>
-    </fieldset>
-
-    <fieldset class="settings-section" data-service="meetings">
-      <legend>{{ t("Meetings") }}</legend>
-      <div class="settings-grid">
-        {% for key in meeting_keys %}{{ field_input(key) }}{% endfor %}
       </div>
     </fieldset>
 

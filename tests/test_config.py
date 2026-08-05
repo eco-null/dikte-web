@@ -240,6 +240,19 @@ class TranscribeTarget(DikteTest):
         self.assertEqual(at.api_key, "sk-a")
         self.assertEqual(at.base_url, "http://127.0.0.1:7777/v1")
 
+    def test_meeting_target_uses_its_own_keys(self):
+        conf = self.config(meeting_provider="groq",
+                           meeting_groq_url="https://g.example/v1",
+                           meeting_groq_key="sk-g",
+                           meeting_groq_model="whisper-small")
+        mt = conf.meeting_target()
+        self.assertEqual(mt.provider, "groq")
+        self.assertEqual(mt.model, "whisper-small")
+        self.assertEqual(mt.api_key, "sk-g")
+        self.assertEqual(mt.base_url, "https://g.example/v1")
+        # independent from the transcribe service
+        self.assertNotEqual(mt.model, conf.transcribe_target().model)
+
     def test_target_falls_back_to_env_key(self):
         from unittest import mock
         conf = self.config(transcribe_provider="openai",

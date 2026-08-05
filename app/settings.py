@@ -1,6 +1,6 @@
 import config as cfg
 
-_SERVICES = ("transcribe", "cleanup", "assistant")
+_SERVICES = ("transcribe", "cleanup", "assistant", "meeting")
 _PROVIDERS = ("openai", "groq", "openrouter", "omniroute")
 
 
@@ -52,9 +52,10 @@ WEB_FIELDS = {
     "assistant_prompt": ("str", []),
     "assistant_session_minutes": ("int", []),
     "assistant_timeout": ("int", []),
-    **_provider_fields("transcribe", _PROVIDERS, []),
-    **_provider_fields("cleanup", _PROVIDERS, ["context", "reasoning"]),
-    **_provider_fields("assistant", _PROVIDERS, ["context", "reasoning"]),
+**_provider_fields("transcribe", _PROVIDERS, []),
+**_provider_fields("cleanup", _PROVIDERS, ["context", "reasoning"]),
+**_provider_fields("assistant", _PROVIDERS, ["context", "reasoning"]),
+**_provider_fields("meeting", _PROVIDERS, []),
 }
 
 MASKED = {key for key in WEB_FIELDS if key.endswith("_key")}

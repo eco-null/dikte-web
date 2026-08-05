@@ -444,6 +444,23 @@ DEFAULTS = {
     "meeting_language": "",         # empty -> the dictation speech language
     "meeting_max_seconds": 14400,   # 4 hours
     "meeting_cleanup": True,
+    "meeting_provider": "openrouter",
+    "meeting_openai_url": "https://api.openai.com/v1",
+    "meeting_openai_key": "",
+    "meeting_openai_model": "gpt-4o-transcribe",
+    "meeting_groq_url": "https://api.groq.com/openai/v1",
+    "meeting_groq_key": "",
+    "meeting_groq_model": "whisper-large-v3-turbo",
+    "meeting_openrouter_url": "https://openrouter.ai/api/v1",
+    "meeting_openrouter_key": "",
+    "meeting_openrouter_model": "openai/gpt-4o-transcribe",
+    "meeting_omniroute_url": "http://host.docker.internal:20128/v1",
+    "meeting_omniroute_key": "",
+    "meeting_omniroute_model": "",
+    "meeting_local_model": ggml.SUGGESTED_WHISPER,
+    "meeting_local_threads": 0,
+    "meeting_local_gpu": True,
+    "meeting_local_preload": True,
     "meeting_model": "google/gemini-3.5-flash",
     "meeting_reasoning": "",
     "meeting_prompt": "",           # empty -> language-specific default
@@ -557,6 +574,10 @@ LEGACY_KEY_MAP = {
     "assistant_omniroute_model": "assistant_omniroute_model",
     "assistant_local_model": "local_llm_model",
     "assistant_local_reasoning": "local_llm_reasoning",
+    "meeting_openrouter_model": "meeting_model",
+    "meeting_openrouter_key": "openrouter_api_key",
+    "meeting_openrouter_url": "openrouter_base_url",
+    "meeting_local_model": "local_model",
 }
 
 # Saving the settings window used to write the whole default prompt into the
@@ -660,7 +681,7 @@ class Config:
     def _target(self, service, name):
         """An api.Target for `service` (transcribe|cleanup|assistant) and provider `name`."""
         if name == "local":
-            if service == "transcribe":
+            if service in ("transcribe", "meeting"):
                 return api.Target("local", t("Local whisper"), "", "",
                                   self[f"{service}_local_model"])
             return api.Target("local", t("Local llama.cpp"), "", "",
@@ -708,6 +729,12 @@ class Config:
         if name not in ("openai", "groq", "openrouter", "omniroute", "local"):
             name = "openrouter"
         return self._target("assistant", name)
+
+    def meeting_target(self):
+        name = self["meeting_provider"]
+        if name not in ("openai", "groq", "openrouter", "omniroute", "local"):
+            name = "openrouter"
+        return self._target("meeting", name)
 
     def target_for(self, service, provider):
         """An api.Target for a given service and provider, or None for a pair

@@ -246,8 +246,9 @@ class PagesTest(DikteTest):
 
     def test_settings_has_a_meetings_card(self):
         body = self.client.get("/settings").text
-        self.assertIn('data-service="meetings"', body)
-        self.assertIn('name="meeting_model"', body)
+        self.assertIn('data-service="meeting"', body)
+        self.assertIn('name="meeting_provider"', body)
+        self.assertIn('name="meeting_openrouter_model"', body)
 
     def test_hosted_model_fields_render_select(self):
         body = self.client.get("/settings").text

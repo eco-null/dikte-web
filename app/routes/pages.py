@@ -16,7 +16,7 @@ _login_failures = {}
 _login_failures_lock = threading.Lock()
 
 PROVIDER_ORDER = ["openai", "groq", "openrouter", "omniroute", "local"]
-SERVICE_ORDER = ["transcribe", "cleanup", "assistant"]
+SERVICE_ORDER = ["transcribe", "cleanup", "assistant", "meeting"]
 
 GENERAL_KEYS = [
     "ui_language", "transcribe_prompt",
@@ -31,7 +31,7 @@ GENERAL_KEYS = [
 ]
 
 MEETING_KEYS = [
-    "meeting_cleanup", "meeting_model", "meeting_reasoning",
+    "meeting_cleanup", "meeting_reasoning",
     "meeting_prompt", "meeting_max_seconds", "meeting_keep_audio",
     "meeting_self_name", "meeting_other_name", "meeting_participants",
 ]
@@ -44,6 +44,7 @@ def _service_spec(service):
             "transcribe": "Transcription",
             "cleanup": "Cleanup",
             "assistant": "Assistant",
+            "meeting": "Meetings",
         }[service],
         "providers": [],
     }
