@@ -1,10 +1,3 @@
-"""Tek şifre login: imzalı, httponly session cookie.
-
-Şifre DIKTE_WEB_PASSWORD env'inden gelir. Boşsa ilk çalıştırmada üretilir,
-data dizinine (web_password) 0600 izinleriyle yazılır. Cookie, per-process
-bir pepper ile HMAC imzalıdır.
-"""
-
 import hashlib
 import hmac
 import os
@@ -51,7 +44,6 @@ def new_session() -> str:
 
 
 def check(token) -> bool:
-    """Cookie geçerli mi? (imza + süre)"""
     if not token:
         return False
     try:

@@ -1,10 +1,4 @@
-"""Transcribing a file: splitting it, stamping it, and writing subtitles.
 
-to_srt is the awkward one. The text is the authority on wording and the segments
-on timing, and they meet at a whole-second stamp that a cleanup model was asked
-to leave alone. It has to survive a model that wrapped a line, dropped one, or
-made up a stamp nobody recorded.
-"""
 
 import contextlib
 import os
@@ -15,7 +9,6 @@ from unittest import mock
 import api
 import filetranscribe as ft
 from tests.support import DikteTest, make_wav, silence, tone
-
 
 class Timestamps(unittest.TestCase):
     def test_under_an_hour(self):
@@ -35,7 +28,6 @@ class Timestamps(unittest.TestCase):
     def test_a_negative_start_is_pulled_up_to_zero(self):
         self.assertEqual(ft.srt_timestamp(-3), "00:00:00,000")
 
-
 class ToSrt(unittest.TestCase):
     def test_nothing_to_do(self):
         self.assertEqual(ft.to_srt("", []), "")
@@ -47,7 +39,7 @@ class ToSrt(unittest.TestCase):
         self.assertIn("Hello there.", srt)
 
     def test_the_text_wins_on_wording(self):
-        """Cleanup edits survive; only the timing comes from the segments."""
+
         srt = ft.to_srt("[00:01] Hello there.", [(1.0, 2.0, "uh hello uh there")])
         self.assertIn("Hello there.", srt)
         self.assertNotIn("uh", srt)
@@ -77,7 +69,7 @@ class ToSrt(unittest.TestCase):
         self.assertIn("00:00:10,000 --> 00:00:11,500", srt)
 
     def test_a_cue_is_cut_short_when_the_next_one_starts_first(self):
-        """Whisper's end times overlap now and then; subtitles must not."""
+
         srt = ft.to_srt("[00:00] One\n[00:02] Two",
                         [(0.0, 9.0, "One"), (2.0, 3.0, "Two")])
         self.assertIn("00:00:00,000 --> 00:00:02,000", srt)
@@ -92,7 +84,6 @@ class ToSrt(unittest.TestCase):
 
     def test_the_file_ends_with_a_newline(self):
         self.assertTrue(ft.to_srt("[00:00] One", []).endswith("\n"))
-
 
 class SplitText(unittest.TestCase):
     def test_short_text_stays_whole(self):
@@ -121,7 +112,6 @@ class SplitText(unittest.TestCase):
     def test_a_single_line_longer_than_the_limit_is_kept_whole(self):
         text = "x" * (ft.CLEANUP_CHUNK_CHARS + 100)
         self.assertEqual(ft.split_text(text, True), [text])
-
 
 class SplitWav(DikteTest):
     def wav(self, seconds, name="in.wav"):
@@ -152,8 +142,7 @@ class SplitWav(DikteTest):
         self.assertEqual(len({chunk for chunk, _ in chunks}), len(chunks))
 
     def test_a_chunk_starts_inside_the_one_before_it(self):
-        """The cut is what makes whisper lose the thread, so nobody hears only
-        one side of it."""
+
         path = self.wav(10)
         chunks = ft.split_wav(path, self.root, 4, overlap=1)
         self.assertEqual([offset for _, offset in chunks], [0, 3, 6])
@@ -168,9 +157,7 @@ class SplitWav(DikteTest):
     def test_a_tail_the_chunk_before_already_holds_is_not_cut_again(self):
         path = self.wav(9)
         chunks = ft.split_wav(path, self.root, 4, overlap=1)
-        # 0-4, 3-7, 6-9: a fourth starting at 9 would be the last second again.
         self.assertEqual([offset for _, offset in chunks], [0, 3, 6])
-
 
 class Stitch(unittest.TestCase):
     def test_the_first_chunk_is_taken_as_it_is(self):
@@ -184,8 +171,7 @@ class Stitch(unittest.TestCase):
                          [(0.0, 4.0, "a whole sentence"), (4.0, 6.0, "cut in half")])
 
     def test_the_chunk_before_gives_way_where_the_new_telling_starts(self):
-        """The two chunks put the sentence in different cues; whichever way they
-        fall, nothing is said twice and the cues run forwards."""
+
         collected = [(0.0, 3.0, "one"), (3.0, 5.0, "two"), (5.0, 6.0, "three cut")]
         incoming = [(2.0, 4.5, "one and two"), (4.5, 7.0, "two and three whole")]
         stitched = ft.stitch(collected, incoming)
@@ -201,7 +187,6 @@ class Stitch(unittest.TestCase):
         collected = [(0.0, 4.0, "one"), (4.0, 5.0, "two")]
         self.assertEqual(ft.stitch(collected, [(1.0, 2.0, "one")]), collected)
 
-
 class ChunkSeconds(DikteTest):
     def file(self, size):
         path = self.path("audio.mp3")
@@ -213,7 +198,6 @@ class ChunkSeconds(DikteTest):
         self.assertEqual(ft.chunk_seconds(self.file(1024), 600), 0.0)
 
     def test_a_file_over_the_limit_is_cut_by_what_it_measured(self):
-        # Twice the limit over an hour, so a little under half an hour fits.
         seconds = ft.chunk_seconds(self.file(ft.UPLOAD_LIMIT * 2), 3600)
         self.assertGreater(seconds, 1500)
         self.assertLess(seconds, 1800)
@@ -221,9 +205,7 @@ class ChunkSeconds(DikteTest):
     def test_a_file_with_no_length_is_left_whole(self):
         self.assertEqual(ft.chunk_seconds(self.file(ft.UPLOAD_LIMIT * 2), 0), 0.0)
 
-
 class Chunks(DikteTest):
-    """What a hosted model is handed, and in how many pieces."""
 
     def setUp(self):
         super().setUp()
@@ -245,7 +227,6 @@ class Chunks(DikteTest):
         wav = make_wav(self.path("long.wav"), silence(120))
 
         def encode(path, workdir, name, *args):
-            # The whole file is over the limit; the pieces are not.
             size = ft.UPLOAD_LIMIT * 2 if name == "audio.mp3" else 1024
             out = os.path.join(workdir, name)
             with open(out, "wb") as fh:
@@ -260,13 +241,7 @@ class Chunks(DikteTest):
         for path, _ in chunks:
             self.assertTrue(path.endswith(".mp3"))
 
-
 class Transcriber(DikteTest):
-    """The chain, run in this thread with ffmpeg and both API calls faked.
-
-    The webapp runs the chain synchronously on the caller's thread: what comes
-    out is either the (text, segments) pair or an exception.
-    """
 
     def setUp(self):
         super().setUp()
@@ -345,7 +320,6 @@ class Transcriber(DikteTest):
                 mock.patch.object(api, "transcribe", return_value="text") as call:
             worker.transcribe(self.source, False, False)
         self.assertIs(call.call_args.kwargs["aborter"], worker._abort)
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,10 +1,4 @@
-"""A two-channel recording turned into minutes.
 
-Attribution is settled by the channels rather than guessed, so the tests care
-about what happens at the seams: the microphone picking the other side up
-through the speakers, two people talking over each other, and a run that died
-after the transcription and must not pay for it twice.
-"""
 
 import contextlib
 import unittest
@@ -16,10 +10,8 @@ import config as cfg
 import meeting
 from tests.support import DikteTest, make_wav, silence, speech, stereo, tone
 
-
 def seg(start, end, text, speaker):
     return (start, end, text, speaker)
-
 
 class SplitChannels(DikteTest):
     def stereo_file(self, left, right, name="meeting.wav"):
@@ -46,12 +38,11 @@ class SplitChannels(DikteTest):
             self.assertEqual(wav.getnframes(), 3 * 16000)
 
     def test_a_mono_upload_has_no_channel_of_its_own(self):
-        """Everything lands on the other side; the microphone side is silent."""
+
         path = make_wav(self.path("mono.wav"), tone(1.0))
         mine, theirs = meeting.split_channels(path, self.root)
         self.assertEqual(max(meeting.rms_series(mine)), 0.0)
         self.assertGreater(max(meeting.rms_series(theirs)), 0.1)
-
 
 class RmsSeries(DikteTest):
     def test_silence_reads_as_nothing(self):
@@ -70,7 +61,6 @@ class RmsSeries(DikteTest):
     def test_the_rate_is_read_off_the_file(self):
         path = make_wav(self.path("clip.wav"), silence(0.1), rate=8000)
         self.assertEqual(meeting.wav_rate(path), 8000)
-
 
 class MergeTurns(unittest.TestCase):
     def test_one_timeline_out_of_two_channels(self):
@@ -142,7 +132,6 @@ class MergeTurns(unittest.TestCase):
     def test_nothing_was_said_at_all(self):
         self.assertEqual(meeting.merge_turns([]), [])
 
-
 class RenderTurns(unittest.TestCase):
     def test_a_stamp_and_a_name_per_line(self):
         text = meeting.render_turns(
@@ -151,7 +140,6 @@ class RenderTurns(unittest.TestCase):
 
     def test_nothing_to_render(self):
         self.assertEqual(meeting.render_turns([], "Me", "Them"), "")
-
 
 class Document(DikteTest):
     def test_a_heading_becomes_the_title(self):
@@ -202,7 +190,6 @@ class Document(DikteTest):
         cfg.Config()
         self.assertIn("dk", meeting.length_label(600))
 
-
 class Entry(unittest.TestCase):
     def test_the_stem_is_a_sortable_timestamp(self):
         base = meeting.new_base()
@@ -216,13 +203,7 @@ class Entry(unittest.TestCase):
         self.assertEqual(entry["duration"], 125.4)
         self.assertEqual(entry["status"], "recorded")
 
-
 class Pipeline(DikteTest):
-    """The chain, run in this thread with the API calls faked.
-
-    The webapp runs the pipeline synchronously: a run returns the title, or
-    raises an ApiError having marked the row failed.
-    """
 
     def setUp(self):
         super().setUp()
@@ -268,7 +249,7 @@ class Pipeline(DikteTest):
         self.assertTrue(self.wav.exists())
 
     def test_a_failed_run_keeps_the_audio_whatever_the_setting_says(self):
-        """It is the only copy of the meeting, and a retry starts from it."""
+
         with self.assertRaises(api.ApiError):
             self.run_pipeline(cleanup_fails=True)
         self.assertTrue(self.wav.exists())
@@ -319,7 +300,6 @@ class Pipeline(DikteTest):
     def test_minutes_with_no_heading_fall_back_to_a_title(self):
         self.run_pipeline(minutes="We agreed to ship.")
         self.assertEqual(cfg.read_meetings()[0]["title"], "Meeting")
-
 
 if __name__ == "__main__":
     unittest.main()

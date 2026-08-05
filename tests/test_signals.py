@@ -1,9 +1,8 @@
-"""The tiny Signal that replaced pyqtSignal; only connect/emit/disconnect."""
+
 
 import unittest
 
 from app.vendor.dikte import signals
-
 
 class SignalTests(unittest.TestCase):
     def test_emit_calls_every_connected_slot(self):
@@ -40,9 +39,7 @@ class SignalTests(unittest.TestCase):
         s.connect(first)
         s.connect(lambda *a: calls.append("second"))
         s.emit()
-        # A slot that disconnects itself mid-emit must not break the rest.
         self.assertEqual(calls, ["first", "second"])
-
 
 if __name__ == "__main__":
     unittest.main()

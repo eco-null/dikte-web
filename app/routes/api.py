@@ -1,5 +1,3 @@
-"""Web sayfalarının JSON API'si. Auth gate main.py'deki middleware'dedir."""
-
 import os
 import re
 import shutil
@@ -41,7 +39,6 @@ def _conf(request):
 
 
 def _save_upload(upload: UploadFile) -> str:
-    """Upload'u kalıcı bir temp dosyaya yazar (job çalışırken silinmez)."""
     if upload.size is not None and upload.size > MAX_UPLOAD:
         raise HTTPException(413, detail="upload too large")
     suffix = os.path.splitext(upload.filename or "")[1]
@@ -274,7 +271,6 @@ def download(request: Request, job_id: str, fmt: str = "txt"):
 
 
 def _meeting_wav(path, workdir):
-    """Kanalları koruyarak WAV'a çevirir (toplantı stereo gerekir)."""
     out = os.path.join(workdir, "meeting.wav")
     return ft._ffmpeg(["-i", path, "-vn", "-ar", "16000",
                        "-c:a", "pcm_s16le", out], out)

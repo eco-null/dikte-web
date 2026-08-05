@@ -1,17 +1,15 @@
-"""The silence check, which decides whether a recording is worth an API call."""
+
 
 import unittest
 
 import vad
 from tests.support import DikteTest
 
-CHUNK = 1024 / 16000  # what worker.py feeds it: one chunk of the level meter
-
+CHUNK = 1024 / 16000
 
 def levels(*, quiet=0.0005, loud=0.2, quiet_chunks=40, loud_chunks=20):
-    """A recording as its per-chunk RMS values: a noise floor, then speech."""
-    return [quiet] * quiet_chunks + [loud] * loud_chunks
 
+    return [quiet] * quiet_chunks + [loud] * loud_chunks
 
 class ToDb(unittest.TestCase):
     def test_silence_does_not_take_the_logarithm_of_zero(self):
@@ -24,7 +22,6 @@ class ToDb(unittest.TestCase):
     def test_half_scale_is_about_minus_six(self):
         self.assertAlmostEqual(vad.to_db(0.5), -6.02, places=2)
 
-
 class Percentile(unittest.TestCase):
     def test_empty(self):
         self.assertEqual(vad._percentile([], 0.5), 0.0)
@@ -34,7 +31,6 @@ class Percentile(unittest.TestCase):
 
     def test_picks_by_position(self):
         self.assertEqual(vad._percentile([0, 1, 2, 3, 4, 5, 6, 7, 8, 9], 0.1), 1)
-
 
 class Analyse(unittest.TestCase):
     def test_no_chunks_at_all(self):
@@ -64,7 +60,6 @@ class Analyse(unittest.TestCase):
         narrow = vad.analyse(levels(loud=0.005), CHUNK, margin_db=3.0)
         self.assertLess(wide["voiced_seconds"], narrow["voiced_seconds"])
 
-
 class IsSilent(unittest.TestCase):
     def test_speech_passes(self):
         self.assertFalse(vad.is_silent(vad.analyse(levels(), CHUNK)))
@@ -79,18 +74,12 @@ class IsSilent(unittest.TestCase):
         self.assertLess(stats["voiced_seconds"], 0.3)
 
     def test_steady_hiss_near_the_floor(self):
-        # Loud enough to clear the absolute floor, but the level never moves,
-        # which is a fan rather than a voice.
         stats = vad.analyse([0.0025] * 60, CHUNK)
         self.assertGreater(stats["speech_db"], -55.0)
         self.assertTrue(vad.is_silent(stats))
 
     def test_a_level_that_never_moves_is_never_speech_however_loud(self):
-        """The floor is the whole recording, so nothing can rise above it.
 
-        This is what settles a flat recording, at any volume: the margin rule
-        gets there before the dynamics rule ever does.
-        """
         stats = vad.analyse([0.25] * 60, CHUNK)
         self.assertEqual(stats["voiced_seconds"], 0.0)
         self.assertTrue(vad.is_silent(stats))
@@ -110,7 +99,6 @@ class IsSilent(unittest.TestCase):
         self.assertTrue(vad.is_silent(stats, silence_db=-1.0))
         self.assertTrue(vad.is_silent(stats, min_voiced_seconds=999.0))
 
-
 class Hallucinations(DikteTest):
     def test_a_stock_phrase_from_a_short_clip(self):
         self.assertTrue(vad.looks_like_hallucination("Altyazı M.K.", 2.0))
@@ -121,7 +109,6 @@ class Hallucinations(DikteTest):
             "Altyazı M.K. Altyazı M.K. Altyazı M.K.", 3.0))
 
     def test_a_long_clip_is_believed(self):
-        # Somebody who talks for half a minute and lands on the phrase meant it.
         self.assertFalse(vad.looks_like_hallucination("Thanks for watching", 30.0))
 
     def test_real_speech_is_kept(self):
@@ -140,7 +127,6 @@ class Hallucinations(DikteTest):
     def test_the_boundary_is_the_max_duration(self):
         self.assertTrue(vad.looks_like_hallucination("you", 6.0))
         self.assertFalse(vad.looks_like_hallucination("you", 6.1))
-
 
 if __name__ == "__main__":
     unittest.main()

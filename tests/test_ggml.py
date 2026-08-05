@@ -1,4 +1,4 @@
-"""ggml: downloads, installs, and runs whisper.cpp / llama.cpp."""
+
 
 import hashlib
 import socket
@@ -9,16 +9,14 @@ import ggml
 import hub
 from tests.support import DikteTest, fake_urlopen
 
-
 def _binary_ok(body):
-    """A urlopen stand-in that streams `body` with a Content-Length header."""
+
     resp = mock.MagicMock()
     resp.headers = {"Content-Length": str(len(body))}
     resp.read.side_effect = [body] + [b""] * 20
     resp.__enter__.return_value = resp
     resp.__exit__.return_value = False
     return mock.patch("urllib.request.urlopen", return_value=resp)
-
 
 class GgmlDownload(DikteTest):
     def setUp(self):
@@ -74,15 +72,13 @@ class GgmlDownload(DikteTest):
         self.assertFalse(ok)
         self.assertFalse(self.path("m.bin").exists())
 
-
 def _files_reply(items):
-    """hub.files expects a raw HF API list body with type: file entries."""
+
     import json
     body = [{"type": "file", "path": it.name,
              "lfs": {"size": it.size, "oid": "sha256:" + it.sha256},
              "downloadUrl": it.url} for it in items]
     return fake_urlopen(json.loads(json.dumps(body)))
-
 
 class GgmlCatalog(DikteTest):
     def setUp(self):
@@ -110,7 +106,7 @@ class GgmlCatalog(DikteTest):
         self.assertEqual([q.name for q in quants], ["m.gguf"])
 
     def test_whisper_model_path_stays_inside_the_models_dir(self):
-        """A user-supplied model name cannot walk out of MODELS_DIR."""
+
         path = ggml.whisper_model_path("../../evil.bin")
         self.assertEqual(path, ggml.MODELS_DIR / "whisper" / "evil.bin")
         self.assertTrue(path.is_relative_to(ggml.MODELS_DIR))
@@ -132,16 +128,13 @@ class GgmlCatalog(DikteTest):
         p.write_bytes(b"x")
         ggml.delete_model(str(p))
         self.assertFalse(p.exists())
-        ggml.delete_model(str(p))  # idempotent
+        ggml.delete_model(str(p))
 
     def test_free_port_is_listenable(self):
         port = ggml._free_port()
-        # _free_port hands out a port nothing is listening on, and one that can
-        # be bound again: the docstring's contract, which a start depends on.
         self.assertFalse(ggml._listening(port))
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
             sock.bind((ggml.HOST, port))
-
 
 class GgmlServer(DikteTest):
     def setUp(self):
@@ -169,7 +162,6 @@ class GgmlServer(DikteTest):
         ggml.whisper._port = 1
         ggml.stop_all()
         self.assertIsNone(ggml.whisper._proc)
-
 
 if __name__ == "__main__":
     unittest.main()

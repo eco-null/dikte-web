@@ -1,10 +1,9 @@
-"""The model/download catalogue hub: GitHub + Hugging Face, cached."""
+
 
 import unittest
 
 import hub
 from tests.support import DikteTest, fake_urlopen, url_error
-
 
 class Hub(DikteTest):
     def setUp(self):
@@ -50,9 +49,8 @@ class Hub(DikteTest):
                                "browser_download_url": "https://x/x"}]}
         with fake_urlopen(payload, url_error()):
             hub.release("a/b", refresh=True)
-            hub.release("a/b")  # served from cache; a 2nd network hit would raise
+            hub.release("a/b")
         self.assertEqual(hub._read_cache("gh-a/b-latest", 999), payload)
-
 
 if __name__ == "__main__":
     unittest.main()

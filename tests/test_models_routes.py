@@ -1,4 +1,4 @@
-"""Model catalogue, install and delete over the JSON API."""
+
 
 import time
 import unittest
@@ -9,7 +9,6 @@ import ggml
 import hub
 from app import jobs, settings as web_settings
 from tests.support import DikteTest, fake_urlopen
-
 
 class ModelsTest(DikteTest):
     def setUp(self):
@@ -131,14 +130,12 @@ class ModelsTest(DikteTest):
             time.sleep(0.05)
         self.fail("job did not finish")
 
-
 def _files_reply(items):
     import json
     body = [{"type": "file", "path": it.name,
              "lfs": {"size": it.size, "oid": "sha256:" + it.sha256},
              "downloadUrl": it.url} for it in items]
     return fake_urlopen(json.loads(json.dumps(body)))
-
 
 if __name__ == "__main__":
     unittest.main()

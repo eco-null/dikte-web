@@ -1,4 +1,4 @@
-"""One password, a signed session cookie, and a generated fallback."""
+
 
 import io
 import os
@@ -12,11 +12,7 @@ from app import auth
 from app.main import app as fastapi_app
 from tests.support import DikteTest
 
-# httpx's TestClient will not carry a Secure cookie over plain http://testserver,
-# so the session would never stick in tests. The env-var default is "1" for
-# production TLS; tests opt out explicitly.
 os.environ["DIKTE_COOKIE_SECURE"] = "0"
-
 
 class Auth(DikteTest):
     def test_password_reads_the_env(self):
@@ -24,16 +20,14 @@ class Auth(DikteTest):
             self.assertEqual(auth.password(), "secret")
 
     def test_generated_password_is_stored(self):
-        # The env one from conftest would shadow the fallback path.
         with mock.patch.dict(os.environ, {}, clear=True):
             p1 = auth.password()
             p2 = auth.password()
         self.assertTrue(p1)
-        self.assertEqual(p1, p2)  # aynı dosyadan okur
+        self.assertEqual(p1, p2)
         self.assertEqual((cfg.DATA_DIR / "web_password").read_text().strip(), p1)
 
     def test_generated_password_is_0600_and_not_printed(self):
-        # The env one from conftest would shadow the fallback path.
         captured = io.StringIO()
         with mock.patch.dict(os.environ, {}, clear=True), \
                 mock.patch("sys.stderr", captured):
@@ -43,7 +37,7 @@ class Auth(DikteTest):
         self.assertEqual(p1, p2)
         self.assertEqual(captured.getvalue(), "",
                          "generated password must not be logged")
-        if os.name != "nt":  # chmod POSIX-only, same as the rest of the suite
+        if os.name != "nt":
             mode = (cfg.DATA_DIR / "web_password").stat().st_mode & 0o777
             self.assertEqual(mode, 0o600)
 
@@ -79,7 +73,6 @@ class Auth(DikteTest):
 
     def test_an_expired_session_is_rejected(self):
         token = auth.new_session()
-        # Backdate it past the window: the token's own timestamp is checked.
         value, sig = token.rsplit(".", 1)
         old = f"{float(value.split('.', 1)[0]) - 8 * 24 * 3600}.{value.split('.', 1)[1]}.{sig}"
         self.assertFalse(auth.check(old))
@@ -101,7 +94,6 @@ class Auth(DikteTest):
         bogus_value = f"not-a-number.{value.split('.', 1)[1]}"
         bogus = f"{bogus_value}.{auth._sig(bogus_value)}"
         self.assertFalse(auth.check(bogus))
-
 
 if __name__ == "__main__":
     unittest.main()

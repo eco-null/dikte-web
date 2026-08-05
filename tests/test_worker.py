@@ -1,4 +1,4 @@
-"""The dictation chain: transcribe, clean up, keep the raw on failure."""
+
 
 import unittest
 from unittest import mock
@@ -7,7 +7,6 @@ import api
 import worker
 from tests.support import (DikteTest, fake_urlopen, make_wav, silence,
                            speech, url_error)
-
 
 class Pipeline(DikteTest):
     def conf(self, **over):
@@ -50,7 +49,6 @@ class Pipeline(DikteTest):
         with fake_urlopen({"text": "kayıt"}):
             p.run(clip, 1.0, [0.0005] * 40 + [0.2] * 20)
         self.assertEqual(len(cfg.read_history()), 1)
-
 
 if __name__ == "__main__":
     unittest.main()

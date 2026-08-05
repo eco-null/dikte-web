@@ -1,4 +1,4 @@
-"""The agent: which provider gets which key and base URL."""
+
 
 import unittest
 from unittest import mock
@@ -6,7 +6,6 @@ from unittest import mock
 import api
 import assistant
 from tests.support import DikteTest
-
 
 class AssistantProvider(DikteTest):
     def test_omniroute_uses_its_own_key_and_base_url(self):
@@ -20,7 +19,6 @@ class AssistantProvider(DikteTest):
             answer, _warning = assistant.ask("soru", conf)
         self.assertEqual(answer, "cevap")
         args, kwargs = chat.call_args
-        # api.chat(messages, api_key, model, system_prompt, ...) — first four positional.
         self.assertEqual(args[1], "sk-omni")
         self.assertEqual(kwargs["base_url"], "http://127.0.0.1:20128/v1")
         self.assertIs(kwargs["key_required"], False)
@@ -50,7 +48,6 @@ class AssistantProvider(DikteTest):
         self.assertEqual(args[1], "sk-or")
         self.assertIs(kwargs["key_required"], True)
         self.assertEqual(kwargs["provider"], "openrouter")
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,10 +1,3 @@
-"""FastAPI uygulaması.
-
-- /static ve /healthz hariç her şey auth gate'ten geçer (/api/* -> 401, sayfalar -> /login).
-- Jinja2'ye `t` globali ve `markdown` filtresi eklenir.
-- app.state.conf: webapp'in paylaşılan Config'i.
-"""
-
 import os
 from urllib.parse import urlsplit
 
@@ -30,14 +23,10 @@ MUTATING_METHODS = ("POST", "PUT", "PATCH", "DELETE")
 
 
 def _markdown_html(text):
-    """Markdown -> HTML, nh3 ile sanitize edilmiş (stored XSS koruması)."""
     return nh3.clean(markdown.markdown(text or ""))
 
 
 def _same_origin(request):
-    """Tarayıcı siteler arası bir POST'ta Origin (veya Referer) gönderir;
-    eşleşen biri tek niyet kanıtıdır. Hiçbiri yoksa non-browser bir istemcidir
-    (curl, TestClient) ve buna izin verilir."""
     host = request.headers.get("host") or request.url.netloc
     for header in ("origin", "referer"):
         value = request.headers.get(header)
@@ -82,9 +71,6 @@ def create_app():
     async def csrf_protect(request: Request, call_next):
         if request.method in MUTATING_METHODS:
             if request.url.path == "/login":
-                # Henüz çerez yok; giriş formu siteler arası atak hedefi değil
-                # (şifre tek başına kimlik doğrulamadır) ve Origin kontrolü
-                # burayı bozardı.
                 return await call_next(request)
             if not _same_origin(request):
                 if request.url.path.startswith("/api/"):
@@ -98,7 +84,7 @@ def create_app():
     @app.get("/healthz")
     def healthz():
         try:
-            cfg.Config()  # config dosyası okunabiliyor mu?
+            cfg.Config()
             return {"ok": True}
         except Exception:
             return JSONResponse({"ok": False, "error": "settings unavailable"},

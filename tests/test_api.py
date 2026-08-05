@@ -1,13 +1,4 @@
-"""The two providers, over a faked urllib.
 
-Nothing here reaches the network. What is checked is the request that would have
-gone out, because that is what a new provider changes and what an old one
-notices: the URL, the headers, the fields of the multipart body, the JSON.
-
-Stopping one is the exception. Cutting a request off is done to the socket it
-is blocked on, and a faked urlopen has no socket to cut, so those tests talk to
-a server of their own on the loopback interface.
-"""
 
 import http.server
 import json
@@ -32,7 +23,6 @@ GROQ = api.Target("groq", "Groq", "gsk-test", api.GROQ_URL, "whisper-large-v3-tu
 OPENROUTER = api.Target("openrouter", "OpenRouter", "sk-or-test",
                         api.OPENROUTER_URL, "openai/gpt-4o-transcribe")
 
-
 class TimestampModel(unittest.TestCase):
     def test_only_whisper_returns_segment_times(self):
         self.assertEqual(api.timestamp_model("openai"), "whisper-1")
@@ -41,7 +31,7 @@ class TimestampModel(unittest.TestCase):
         self.assertEqual(api.timestamp_model("openrouter"), "openai/whisper-1")
 
     def test_groq_keeps_the_model_that_was_chosen(self):
-        """Every model it transcribes with is a whisper, so all of them do times."""
+
         self.assertEqual(api.timestamp_model("groq", "whisper-large-v3"),
                          "whisper-large-v3")
 
@@ -51,7 +41,6 @@ class TimestampModel(unittest.TestCase):
     def test_the_others_ignore_what_was_chosen(self):
         self.assertEqual(api.timestamp_model("openai", "gpt-4o-transcribe"),
                          "whisper-1")
-
 
 class Explain(DikteTest):
     def error(self, status):
@@ -78,7 +67,6 @@ class Explain(DikteTest):
     def test_the_status_is_carried_through(self):
         self.assertEqual(self.error(429).status, 429)
 
-
 class ExtractError(unittest.TestCase):
     def test_the_usual_shape(self):
         body = json.dumps({"error": {"message": "invalid model"}})
@@ -96,7 +84,6 @@ class ExtractError(unittest.TestCase):
 
     def test_a_wall_of_html_is_cut_short(self):
         self.assertEqual(len(api._extract_error("x" * 5000)), 300)
-
 
 class Multipart(DikteTest):
     def setUp(self):
@@ -130,8 +117,6 @@ class Multipart(DikteTest):
     def test_the_file_goes_in_with_its_name_and_type(self):
         body, _ = self.build([])
         self.assertIn(b'filename="clip.wav"', body)
-        # The exact type is the platform's: .wav is audio/x-wav on some systems
-        # and audio/wav on others, and either is right.
         self.assertRegex(body, br"Content-Type: audio/(x-)?wav")
         self.assertIn(b"RIFFfake", body)
 
@@ -139,7 +124,6 @@ class Multipart(DikteTest):
         first, _ = self.build([])
         second, _ = self.build([])
         self.assertNotEqual(first, second)
-
 
 class Headers(unittest.TestCase):
     def test_the_key_is_a_bearer_token(self):
@@ -157,7 +141,6 @@ class Headers(unittest.TestCase):
     def test_a_content_type_is_added_when_there_is_a_body(self):
         headers = api._headers("openai", "k", "application/json")
         self.assertEqual(headers["Content-Type"], "application/json")
-
 
 class Transcribe(DikteTest):
     def setUp(self):
@@ -199,7 +182,7 @@ class Transcribe(DikteTest):
         self.assertNotIn("language", multipart_fields(calls[1]))
 
     def test_the_glossary_goes_everywhere_but_openrouter(self):
-        """OpenRouter takes the field and throws it away, so spare it the bytes."""
+
         with fake_urlopen({"text": "hi"}) as calls:
             api.transcribe(OPENAI, self.wav, prompt="Paraşüt, OpenFrame")
             api.transcribe(GROQ, self.wav, prompt="Paraşüt, OpenFrame")
@@ -253,7 +236,6 @@ class Transcribe(DikteTest):
                 self.assertRaises(api.ApiError) as caught:
             api.transcribe(OPENAI, self.wav)
         self.assertIn("parse", str(caught.exception))
-
 
 class TranscribeSegments(DikteTest):
     def setUp(self):
@@ -316,10 +298,8 @@ class TranscribeSegments(DikteTest):
                 self.assertRaises(api.ApiError):
             api.transcribe_segments(OPENAI, self.wav)
 
-
 def chat_reply(content):
     return {"choices": [{"message": {"content": content}}]}
-
 
 class Cleanup(DikteTest):
     def call(self, replies, **kwargs):
@@ -382,7 +362,6 @@ class Cleanup(DikteTest):
             api.cleanup("hello", "k", "m", "p")
         self.assertIn("OpenRouter", str(caught.exception))
 
-
 class Chat(DikteTest):
     def test_the_history_is_sent_after_the_system_prompt(self):
         history = [{"role": "user", "content": "book it"},
@@ -409,9 +388,7 @@ class Chat(DikteTest):
         with fake_urlopen(chat_reply("")), self.assertRaises(api.ApiError):
             api.chat([{"role": "user", "content": "hi"}], "k", "m", "p")
 
-
 class SafeBaseUrl(DikteTest):
-    """chat() must not be pointed at a private or malformed address (SSRF)."""
 
     def call(self, base_url, **kwargs):
         return api.chat([{"role": "user", "content": "hi"}], "k", "m", "p",
@@ -458,7 +435,6 @@ class SafeBaseUrl(DikteTest):
     def test_a_public_host_is_allowed(self):
         self.allows(api.OPENROUTER_URL)
 
-
 class KeyStatus(DikteTest):
     def test_a_key_with_no_limit(self):
         with fake_urlopen({"data": {"limit": None, "usage": 3}}):
@@ -481,7 +457,6 @@ class KeyStatus(DikteTest):
             api.openrouter_key_status("sk-or-bad")
         self.assertEqual(caught.exception.status, 401)
 
-
 class ModelLists(DikteTest):
     def test_openrouter_returns_sorted_ids(self):
         with fake_urlopen({"data": [{"id": "z/model"}, {"id": "a/model"}]}):
@@ -498,7 +473,7 @@ class ModelLists(DikteTest):
         self.assertEqual(calls[0].get_header("Authorization"), "Bearer sk-or-test")
 
     def test_speech_models_are_asked_for_and_filtered_again(self):
-        """A query parameter the API stops honouring must not leak the lot."""
+
         with fake_urlopen({"data": [
             {"id": "openai/whisper-1",
              "architecture": {"output_modalities": ["transcription"]}},
@@ -535,5 +510,4 @@ class ModelLists(DikteTest):
         with self.assertRaises(api.ApiError) as caught:
             api.openai_models("", api.GROQ_URL, "Groq")
         self.assertIn("Groq", str(caught.exception))
-
 

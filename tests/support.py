@@ -1,11 +1,4 @@
-"""What the tests share: a throwaway home, a fake network, small WAV files.
 
-Two things about this codebase shape all of it. Paths are module-level constants
-resolved at import time, so they are replaced object by object rather than
-re-derived by reloading the module, which would hand every other module a second
-copy of it. And the only way out to the network is urllib, so faking one function
-is enough to run the whole chain offline.
-"""
 
 import array
 import contextlib
@@ -25,15 +18,12 @@ import assistant
 import config as cfg
 import i18n
 
-
 def _no_network(*args, **kwargs):
     raise AssertionError(
         "a test reached the network; wrap the call in support.fake_urlopen"
     )
 
-
 class DikteTest(unittest.TestCase):
-    """A test that owns its config, its data directory and its language."""
 
     def setUp(self):
         super().setUp()
@@ -51,22 +41,15 @@ class DikteTest(unittest.TestCase):
             MEETINGS_DIR=data_dir / "meetings",
             MEETINGS_FILE=data_dir / "meetings.jsonl",
         )
-        # Resolved from cfg.DATA_DIR when assistant was imported, so it needs
-        # moving on its own.
         self.patch_attr(assistant, "SESSION_FILE", data_dir / "assistant.json")
 
         i18n.set_language("en")
         self.addCleanup(i18n.set_language, "en")
 
-        # Every way out of here goes through urllib, so closing it is enough to
-        # keep the suite offline. A test that means to answer a request patches
-        # this again through fake_urlopen.
         self.patch_attr(urllib.request, "urlopen", _no_network)
 
-    # ---- helpers ---------------------------------------------------------
-
     def path(self, *parts):
-        """A path inside this test's directory, as a pathlib.Path."""
+
         import pathlib
         return pathlib.Path(self.root, *parts)
 
@@ -82,26 +65,22 @@ class DikteTest(unittest.TestCase):
         return value
 
     def config(self, **values):
-        """A Config with nothing stored, then the given settings applied."""
+
         conf = cfg.Config()
         for key, value in values.items():
             conf[key] = value
         return conf
 
     def write_config(self, payload):
-        """Put a config.json on disk, the way an older version would have."""
+
         cfg.CONFIG_DIR.mkdir(parents=True, exist_ok=True)
         cfg.CONFIG_FILE.write_text(json.dumps(payload), encoding="utf-8")
 
     def read_config_file(self):
         return json.loads(cfg.CONFIG_FILE.read_text(encoding="utf-8"))
 
-
-# --- the network ----------------------------------------------------------
-
-
 def json_body(payload):
-    """A stand-in for what urlopen hands back: a context manager that reads."""
+
     body = json.dumps(payload).encode("utf-8")
     resp = mock.MagicMock()
     resp.read.return_value = body
@@ -109,15 +88,13 @@ def json_body(payload):
     resp.__exit__.return_value = False
     return resp
 
-
 def raw_body(text):
-    """The same, for a reply that is not valid JSON."""
+
     resp = mock.MagicMock()
     resp.read.return_value = text.encode("utf-8")
     resp.__enter__.return_value = resp
     resp.__exit__.return_value = False
     return resp
-
 
 def http_error(code, body=""):
     return urllib.error.HTTPError(
@@ -125,19 +102,12 @@ def http_error(code, body=""):
         io.BytesIO(body.encode("utf-8")),
     )
 
-
 def url_error(reason="no route to host"):
     return urllib.error.URLError(reason)
 
-
 @contextlib.contextmanager
 def fake_urlopen(*replies):
-    """Answer each call with the next reply; the last one repeats.
 
-    A reply is a payload to encode as JSON, an exception to raise, or an object
-    already shaped like a response. The requests are collected so a test can
-    check what was actually sent.
-    """
     calls = []
 
     def opener(req, timeout=None):
@@ -153,21 +123,16 @@ def fake_urlopen(*replies):
         with mock.patch("urllib.request.urlopen", side_effect=opener):
             yield calls
     finally:
-        # An HTTPError holds a file object and complains when it is collected
-        # without one; the tests raise the same one more than once, so closing
-        # it is the caller's job rather than the code's.
         for reply in replies:
             if isinstance(reply, urllib.error.HTTPError):
                 reply.close()
 
-
 def sent_json(request):
-    """The JSON body of a recorded request."""
+
     return json.loads(request.data.decode("utf-8"))
 
-
 def multipart_fields(request):
-    """{name: value} for the plain fields of a recorded multipart request."""
+
     body = request.data.decode("utf-8", "replace")
     fields = {}
     for part in body.split("\r\n--"):
@@ -178,16 +143,11 @@ def multipart_fields(request):
         fields[name] = value.rstrip("\r\n")
     return fields
 
-
-# --- audio ----------------------------------------------------------------
-
-
 def pcm(samples):
     return array.array("h", samples).tobytes()
 
-
 def tone(seconds, rate=16000, amplitude=8000, channels=1, freq=440.0):
-    """Interleaved s16 samples for a sine wave, the same on every channel."""
+
     frames = int(seconds * rate)
     out = array.array("h")
     for index in range(frames):
@@ -195,21 +155,13 @@ def tone(seconds, rate=16000, amplitude=8000, channels=1, freq=440.0):
         out.extend([value] * channels)
     return out.tobytes()
 
-
 def silence(seconds, rate=16000, channels=1):
     return b"\x00\x00" * int(seconds * rate) * channels
 
-
 def speech(seconds, rate=16000, amplitude=16000, freq=440.0):
-    """A buffer the silence check reads as somebody talking.
 
-    A steady tone does not, however loud it is: the check is relative, and a
-    level that never moves is its own noise floor. Speech is quiet, then loud,
-    which is what the pauses between words make it.
-    """
     half = seconds / 2
     return silence(half, rate) + tone(half, rate, amplitude, freq=freq)
-
 
 def make_wav(path, data, rate=16000, channels=1, width=2):
     os.makedirs(os.path.dirname(str(path)) or ".", exist_ok=True)
@@ -220,9 +172,8 @@ def make_wav(path, data, rate=16000, channels=1, width=2):
         wav.writeframes(data)
     return str(path)
 
-
 def stereo(left, right):
-    """Interleave two equal-length mono buffers into one stereo buffer."""
+
     a, b = array.array("h"), array.array("h")
     a.frombytes(left)
     b.frombytes(right)
@@ -231,21 +182,15 @@ def stereo(left, right):
         out.extend((first, second))
     return out.tobytes()
 
-
-# --- processes ------------------------------------------------------------
-
-
 class FakeCompleted:
-    """What subprocess.run hands back, as much of it as the code reads."""
 
     def __init__(self, returncode=0, stdout="", stderr=""):
         self.returncode = returncode
         self.stdout = stdout
         self.stderr = stderr
 
-
 def only_these_tools(*names):
-    """shutil.which answers for the named tools and nothing else."""
+
     wanted = set(names)
     return mock.patch("shutil.which", side_effect=lambda tool: (
         f"/usr/bin/{tool}" if tool in wanted else None))

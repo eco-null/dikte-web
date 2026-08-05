@@ -1,4 +1,4 @@
-"""Every page renders, is gated, and carries working navigation."""
+
 
 import os
 import unittest
@@ -10,11 +10,7 @@ import i18n
 from app.main import app as fastapi_app
 from tests.support import DikteTest
 
-# httpx's TestClient will not carry a Secure cookie over plain http://testserver,
-# so the session would never stick in tests. The env-var default is "1" for
-# production TLS; tests opt out explicitly.
 os.environ["DIKTE_COOKIE_SECURE"] = "0"
-
 
 class PagesTest(DikteTest):
     def setUp(self):
@@ -78,8 +74,6 @@ class PagesTest(DikteTest):
         self.assertIn("Too many failed attempts", resp.text)
 
     def test_login_rate_limit_uses_the_proxy_client_ip(self):
-        # cloudflared altında gerçek istemci IP'si CF-Connecting-IP'tedir;
-        # iki farklı başlık ayrı sınırlama kovalarına düşmeli.
         from app.routes import pages as pages_routes
         self.addCleanup(pages_routes._reset_login_failures)
         headers = {"CF-Connecting-IP": "203.0.113.1"}
@@ -90,7 +84,6 @@ class PagesTest(DikteTest):
         resp = self.client.post("/login", data={"password": "wrong"},
                                 headers=headers)
         self.assertEqual(resp.status_code, 429)
-        # Farklı bir IP aynı pencere içinde hâlâ deneyebilir.
         other = self.client.post("/login", data={"password": "wrong"},
                                  headers={"CF-Connecting-IP": "203.0.113.2"})
         self.assertEqual(other.status_code, 200)
@@ -136,7 +129,6 @@ class PagesTest(DikteTest):
         self.assertIn('action="/login"', body)
         self.assertIn('name="password"', body)
         self.assertIn("auth-card", body)
-
 
     def test_files_page_has_dropzone_and_downloads(self):
         body = self.client.get("/files").text
@@ -207,7 +199,6 @@ class PagesTest(DikteTest):
         css = self.client.get("/static/app.css").text
         self.assertIn("min-height: 120px", css)
         self.assertIn("overflow: hidden", css)
-
 
 if __name__ == "__main__":
     unittest.main()

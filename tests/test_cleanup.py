@@ -1,9 +1,4 @@
-"""Who cleans the transcript up, and what they are asked.
 
-The webapp keeps only the OpenRouter path. The CLI and local llama.cpp paths
-that the desktop had are not carried over, so the tests here check that what
-reaches OpenRouter is one request built from the settings.
-"""
 
 import unittest
 from unittest import mock
@@ -12,7 +7,6 @@ import api
 import cleanup
 from tests.support import DikteTest, fake_urlopen, sent_json
 from tests.test_api import chat_reply
-
 
 class Provider(DikteTest):
     def test_the_default_is_still_openrouter(self):
@@ -31,7 +25,6 @@ class Provider(DikteTest):
     def test_the_model_named_in_the_history_is_the_one_that_did_it(self):
         self.assertEqual(cleanup.model(self.config(cleanup_model="some/model")),
                          "some/model")
-
 
 class OpenRouter(DikteTest):
     def test_it_is_still_one_request_with_the_settings_as_they_were(self):
@@ -70,10 +63,7 @@ class OpenRouter(DikteTest):
         self.assertIn("empty", str(caught.exception))
 
     def test_a_failure_is_the_same_kind_the_chain_already_catches(self):
-        # worker, the file transcriber and the meeting all keep the raw
-        # transcript when an ApiError comes out of here.
         self.assertTrue(issubclass(cleanup.CleanupError, api.ApiError))
-
 
 class LocalLLM(DikteTest):
     def test_provider_accepts_local_llm(self):
@@ -91,7 +81,6 @@ class LocalLLM(DikteTest):
         _, kwargs = cl.call_args
         self.assertEqual(kwargs["provider"], "local-llm")
         self.assertIn("127.0.0.1:7777", kwargs["base_url"])
-
 
 if __name__ == "__main__":
     unittest.main()

@@ -1,10 +1,4 @@
-"""Settings, the history file and the meeting index.
 
-Every one of these lives on disk and outlives an update, so the tests care most
-about what happens to a file written by an older version: an unknown key, a
-setting stored under its Turkish name, a prompt that used to be copied into the
-config and now shadows the default.
-"""
 
 import json
 import os
@@ -16,7 +10,6 @@ import config as cfg
 import i18n
 from tests.support import DikteTest
 
-
 class Loading(DikteTest):
     def test_nothing_stored_yet(self):
         conf = cfg.Config()
@@ -27,7 +20,7 @@ class Loading(DikteTest):
         self.assertEqual(cfg.Config()["cleanup_model"], "some/other-model")
 
     def test_a_key_this_version_does_not_have_is_dropped(self):
-        """A setting from a fork, or from a version that removed it."""
+
         self.write_config({"cleanup_model": "kept", "invented_by_a_fork": True})
         conf = cfg.Config()
         self.assertEqual(conf["cleanup_model"], "kept")
@@ -54,7 +47,7 @@ class Loading(DikteTest):
         self.assertEqual(cfg.Config()["overlay_corner"], "bottom-right")
 
     def test_a_default_prompt_an_old_version_copied_in_is_dropped(self):
-        """Otherwise it shadows every later improvement to that default."""
+
         old = "the 1.2 default prompt, whatever it said"
         with mock.patch.object(cfg, "LEGACY_PROMPTS", {cfg._fingerprint(old)}):
             self.write_config({"cleanup_prompt": old})
@@ -73,7 +66,6 @@ class Loading(DikteTest):
         self.assertIsNone(cfg.Config()["no_such_setting"])
         self.assertEqual(cfg.Config().get("no_such_setting", "fallback"), "fallback")
 
-
 class Saving(DikteTest):
     def test_a_saved_setting_comes_back(self):
         conf = cfg.Config()
@@ -88,7 +80,7 @@ class Saving(DikteTest):
 
     @unittest.skipIf(os.name == "nt", "no POSIX file modes on Windows")
     def test_the_file_is_readable_by_nobody_else(self):
-        """It holds two API keys."""
+
         cfg.Config().save()
         self.assertEqual(cfg.CONFIG_FILE.stat().st_mode & 0o777, 0o600)
 
@@ -107,7 +99,6 @@ class Saving(DikteTest):
         conf["ui_language"] = "tr"
         conf.save()
         self.assertEqual(i18n.language(), "tr")
-
 
 class Keys(DikteTest):
     def test_a_stored_key_is_used(self):
@@ -129,7 +120,6 @@ class Keys(DikteTest):
     def test_every_provider_falls_back_to_the_variable_of_its_own_name(self):
         with mock.patch.dict(os.environ, {"GROQ_API_KEY": "gsk-env"}):
             self.assertEqual(cfg.Config().groq_key(), "gsk-env")
-
 
 class TranscribeTarget(DikteTest):
     def test_the_web_default_is_hosted_openai(self):
@@ -168,7 +158,7 @@ class TranscribeTarget(DikteTest):
         self.assertEqual(target.model, "whisper-large-v3")
 
     def test_a_provider_this_version_has_never_heard_of(self):
-        """A config written by a fork, or by a version that dropped one."""
+
         target = self.config(transcribe_provider="deepgram").transcribe_target()
         self.assertEqual(target.provider, "openai")
 
@@ -177,12 +167,9 @@ class TranscribeTarget(DikteTest):
                            openai_base_url="http://localhost:8080/v1")
         self.assertEqual(conf.transcribe_target().base_url, "http://localhost:8080/v1")
 
-
 class CleanupPrompt(DikteTest):
     def test_the_default_follows_the_interface_language(self):
         self.assertEqual(cfg.Config().cleanup_prompt(), cfg.CLEANUP_PROMPT_EN)
-        # Building a Config applies the stored language, so it is set there
-        # rather than around it.
         self.write_config({"ui_language": "tr"})
         self.assertEqual(cfg.Config().cleanup_prompt(), cfg.CLEANUP_PROMPT_TR)
 
@@ -219,7 +206,6 @@ class CleanupPrompt(DikteTest):
         self.assertIn("Yusuf", prompt)
         self.assertIn("Ayşe", prompt)
 
-
 class Participants(DikteTest):
     def test_nobody_named(self):
         self.assertEqual(cfg.Config().participants(), "")
@@ -242,7 +228,6 @@ class Participants(DikteTest):
     def test_blank_entries_are_dropped(self):
         conf = self.config(meeting_participants="Ayşe,,  ,\nMehmet")
         self.assertEqual(conf.participants(), "Ayşe\nMehmet")
-
 
 class MeetingSettings(DikteTest):
     def test_the_hint_carries_the_glossary_and_the_names(self):
@@ -267,7 +252,6 @@ class MeetingSettings(DikteTest):
 
     def test_the_meeting_prompt_with_nobody_named(self):
         self.assertEqual(cfg.Config().meeting_prompt(), cfg.MEETING_PROMPT_EN)
-
 
 class History(DikteTest):
     def entry(self, text):
@@ -323,10 +307,10 @@ class History(DikteTest):
         self.assertEqual(len(cfg.read_history()), 1)
 
     def test_trimming_before_anything_was_written(self):
-        cfg.trim_history(10)   # must not raise
+        cfg.trim_history(10)
 
     def test_deleting_matches_on_content_not_on_position(self):
-        """The worker may have appended a row since the list was read."""
+
         rows = [self.entry("a"), self.entry("b"), self.entry("c")]
         for row in rows:
             cfg.append_history(row)
@@ -349,8 +333,7 @@ class History(DikteTest):
         self.assertEqual(cfg.read_history(), [])
 
     def test_clearing_a_history_that_is_not_there(self):
-        cfg.clear_history()   # must not raise
-
+        cfg.clear_history()
 
 class Meetings(DikteTest):
     def entry(self, base, **changes):
@@ -415,7 +398,7 @@ class Meetings(DikteTest):
 
     def test_deleting_a_row_whose_files_are_already_gone(self):
         cfg.save_meeting(self.entry("a"))
-        cfg.delete_meetings(["a"])   # must not raise
+        cfg.delete_meetings(["a"])
         self.assertEqual(cfg.read_meetings(), [])
 
     def test_deleting_nothing(self):
@@ -423,12 +406,10 @@ class Meetings(DikteTest):
         cfg.delete_meetings([])
         self.assertEqual(len(cfg.read_meetings()), 1)
 
-
 class Defaults(unittest.TestCase):
-    """The table itself, which every command line and settings tab reads."""
 
     def test_no_setting_defaults_to_none(self):
-        """cli._coerce switches on the type of the default, so there has to be one."""
+
         for key, value in cfg.DEFAULTS.items():
             with self.subTest(key=key):
                 self.assertIsNotNone(value)

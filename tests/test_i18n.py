@@ -1,9 +1,4 @@
-"""Translation lookup, and the table itself.
 
-The table test is the one that matters for a pull request: a Turkish string
-whose placeholder was renamed raises KeyError at the moment the message is
-shown, which is exactly when nobody is watching a terminal.
-"""
 
 import string
 import unittest
@@ -12,10 +7,8 @@ from unittest import mock
 import i18n
 from tests.support import DikteTest
 
-
 def placeholders(text):
     return {name for _, name, _, _ in string.Formatter().parse(text) if name}
-
 
 class Resolve(unittest.TestCase):
     def test_an_explicit_language_wins(self):
@@ -43,7 +36,6 @@ class Resolve(unittest.TestCase):
         with mock.patch.dict("os.environ", {}, clear=True):
             self.assertEqual(i18n.resolve("de"), "en")
 
-
 class Translate(DikteTest):
     def test_english_returns_the_source_string(self):
         self.assertEqual(i18n.t("Quit"), "Quit")
@@ -62,15 +54,12 @@ class Translate(DikteTest):
         self.assertIn("f13", i18n.t("Unknown key: {key}", key="f13"))
 
     def test_a_string_with_no_arguments_is_not_formatted(self):
-        # Braces in the text itself must survive when nothing is passed in.
         self.assertEqual(i18n.t("{not a placeholder}"), "{not a placeholder}")
 
     def test_a_placeholder_may_be_called_anything(self):
-        """Including the names of t()'s own parameters, which is why they are
-        positional-only: worker.py says {text}, and that has to work."""
+
         self.assertEqual(i18n.t("Discarded: {text}", text="hello"), "Discarded: hello")
         self.assertEqual(i18n.name("Claude", case="dative"), "Claude")
-
 
 class Names(DikteTest):
     def test_english_leaves_the_name_alone(self):
@@ -91,9 +80,7 @@ class Names(DikteTest):
         self.assertEqual(i18n.name("Ollama", "dative"), "Ollama")
         self.assertEqual(i18n.name("Claude", "ablative"), "Claude")
 
-
 class Table(unittest.TestCase):
-    """The Turkish table against the English strings it stands in for."""
 
     def test_every_translation_keeps_the_placeholders_of_its_source(self):
         for source, translated in i18n.TR.items():
@@ -109,14 +96,13 @@ class Table(unittest.TestCase):
                 self.assertTrue(translated.strip())
 
     def test_every_translation_is_formattable(self):
-        """Whatever the table holds, .format() must not blow up on it."""
+
         for source, translated in i18n.TR.items():
             names = placeholders(translated)
             if not names:
                 continue
             with self.subTest(source=source[:50]):
                 translated.format(**{key: "x" for key in names})
-
 
 if __name__ == "__main__":
     unittest.main()

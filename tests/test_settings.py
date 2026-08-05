@@ -1,11 +1,10 @@
-"""The slice of settings the webapp presents and how it applies edits."""
+
 
 import unittest
 
 import config as cfg
 from app import settings as web
 from tests.support import DikteTest
-
 
 class Settings(DikteTest):
     def test_present_masks_keys(self):
@@ -39,7 +38,7 @@ class Settings(DikteTest):
 
     def test_apply_ignores_a_masked_value_that_is_the_stored_redaction(self):
         conf = self.config(openai_api_key="sk-verysecret123")
-        shown = web.present(conf)["openai_api_key"]          # e.g. sk-…123
+        shown = web.present(conf)["openai_api_key"]
         web.apply(conf, {"openai_api_key": shown})
         self.assertEqual(conf["openai_api_key"], "sk-verysecret123")
 
@@ -76,7 +75,6 @@ class Settings(DikteTest):
 
     def test_cleanup_provider_offers_local_llm(self):
         self.assertIn("local-llm", web.WEB_FIELDS["cleanup_provider"][1])
-
 
 if __name__ == "__main__":
     unittest.main()

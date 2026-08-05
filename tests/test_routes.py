@@ -1,9 +1,4 @@
-"""End-to-end: every API endpoint through TestClient, providers faked.
 
-The jobs run on background threads, so the network fakes must stay active
-until a job is finished: the with-block around a request closes before the
-thread's API calls happen otherwise.
-"""
 
 import io
 import os
@@ -18,9 +13,7 @@ import config as cfg
 from app import jobs, settings as web_settings
 from tests.support import DikteTest, fake_urlopen, make_wav, silence, speech
 
-
 class RouteTest(DikteTest):
-    """A logged-in TestClient over an isolated config, no fixture involved."""
 
     def setUp(self):
         super().setUp()
@@ -46,7 +39,6 @@ class RouteTest(DikteTest):
                 return job
             time.sleep(0.05)
         self.fail("job did not finish")
-
 
 class Dictation(RouteTest):
     def test_a_recording_comes_back(self):
@@ -143,7 +135,6 @@ class Dictation(RouteTest):
         self.assertIn("yerel metin", job["result"]["text"])
         cfgw.assert_called()
 
-
 class Files(RouteTest):
     def test_a_file_transcribes_and_downloads(self):
         clip = make_wav(self.path("clip.wav"), speech(1.0))
@@ -183,7 +174,6 @@ class Files(RouteTest):
         self.assertEqual(job["status"], "failed")
         self.assertIn("4 hour limit", job["error"])
 
-
 class Downloads(RouteTest):
     def test_download_404_for_unknown_job(self):
         resp = self.client.get("/api/jobs/does-not-exist/download")
@@ -212,7 +202,7 @@ class Downloads(RouteTest):
     def test_an_upload_streamed_past_the_limit_is_413(self):
         import app.routes.api as api_routes
         upload = mock.Mock()
-        upload.size = None                  # the client declared no length
+        upload.size = None
         upload.filename = "big.webm"
         upload.file = io.BytesIO(b"x" * 100)
         leak = self.path("leak.bin")
@@ -224,7 +214,6 @@ class Downloads(RouteTest):
                 api_routes._save_upload(upload)
         self.assertEqual(cm.exception.status_code, 413)
         self.assertFalse(leak.exists(), "413 left the temp upload behind")
-
 
 class Meetings(RouteTest):
     def test_a_mono_upload_writes_minutes(self):
@@ -253,7 +242,7 @@ class Meetings(RouteTest):
         self.assertEqual(resp.status_code, 200)
         self.assertNotIn(base, [r["base"] for r in cfg.read_meetings()])
         resp = self.client.delete(f"/api/meetings/{base}")
-        self.assertEqual(resp.status_code, 404)  # deleting one that is gone
+        self.assertEqual(resp.status_code, 404)
 
     def test_meeting_delete_with_a_traversal_base_is_rejected(self):
         victim = cfg.meeting_paths("..\\..\\etc\\somefile")[0].resolve()
@@ -321,7 +310,6 @@ class Meetings(RouteTest):
         self.assertEqual(job["status"], "done", job)
         cfgw.assert_called()
 
-
 class Agent(RouteTest):
     def test_a_question_is_answered(self):
         with fake_urlopen({"choices": [{"message": {"content": "cevap"}}]}):
@@ -338,7 +326,6 @@ class Agent(RouteTest):
             resp = self.client.post("/api/agent", json={"question": "a" * 4001})
         self.assertEqual(resp.status_code, 400)
 
-
 class HistorySettings(RouteTest):
     def test_history_lists_and_clears(self):
         cfg.append_history({"ts": "now", "text": "kayıt", "raw": "kayıt"})
@@ -354,7 +341,6 @@ class HistorySettings(RouteTest):
                                 json={"settings": {"cleanup_model": "some/model"}})
         self.assertEqual(post.status_code, 200)
         self.assertEqual(cfg.Config()["cleanup_model"], "some/model")
-
 
 if __name__ == "__main__":
     unittest.main()

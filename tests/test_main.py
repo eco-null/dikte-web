@@ -1,4 +1,4 @@
-"""The FastAPI shell: auth gate, /healthz, static files."""
+
 
 import os
 import unittest
@@ -10,11 +10,7 @@ import config as cfg
 from app.main import app as fastapi_app
 from tests.support import DikteTest
 
-# httpx's TestClient will not carry a Secure cookie over plain http://testserver,
-# so the session would never stick in tests. The env-var default is "1" for
-# production TLS; tests opt out explicitly.
 os.environ["DIKTE_COOKIE_SECURE"] = "0"
-
 
 class MainTest(DikteTest):
     def setUp(self):
@@ -75,8 +71,6 @@ class MainTest(DikteTest):
         self.assertEqual(resp.json()["detail"], "Forbidden: cross-site request")
 
     def test_mutating_request_with_no_origin_is_allowed(self):
-        # TestClient sends no Origin/Referer by default; a non-browser client
-        # is allowed through (the login gate still demands a session).
         self.client.post("/login", data={"password": "test-password"})
         resp = self.client.post("/api/history/clear")
         self.assertEqual(resp.status_code, 200)
@@ -86,7 +80,6 @@ class MainTest(DikteTest):
         resp = self.client.post("/api/history/clear",
                                 headers={"Origin": "http://testserver"})
         self.assertEqual(resp.status_code, 200)
-
 
 if __name__ == "__main__":
     unittest.main()

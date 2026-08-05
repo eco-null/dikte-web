@@ -1,6 +1,3 @@
-"""HTML sayfaları. Auth gate main.py'deki middleware'dedir; /login hariç
-buradan sunulan her şey zaten oturumludur."""
-
 import hmac
 import os
 import threading
@@ -14,8 +11,8 @@ from app import auth
 router = APIRouter()
 
 LOGIN_MAX_FAILURES = 5
-LOGIN_WINDOW = 15 * 60  # seconds
-_login_failures = {}  # client ip -> [failure timestamps]
+LOGIN_WINDOW = 15 * 60
+_login_failures = {}
 _login_failures_lock = threading.Lock()
 
 SECTIONS = {
@@ -47,7 +44,6 @@ SECTIONS = {
 
 
 def _env_bool(name, default):
-    """settings.py ile aynı bool zorlaması: 1/true/on/yes -> True."""
     return str(os.environ.get(name, default)).lower() in ("1", "true", "on", "yes")
 
 
@@ -59,17 +55,12 @@ def _render(request, template, context=None, status_code=200):
 
 
 def _client_ip(request):
-    """Gerçek istemci IP'si: cloudflared/ters proxy altında doğrudan
-    bağlantı host'un değil proxy'nin IP'sidir, o yüzden proxy'nin koyduğu
-    başlık önce okunur. Doğrulama yok ama değer yalnızca bir sınırlama
-    anahtarıdır, kimlik doğrulama değildir."""
     forwarded = request.headers.get("cf-connecting-ip") or \
         (request.headers.get("x-forwarded-for") or "").split(",", 1)[0].strip()
     return forwarded or (request.client.host if request.client else "")
 
 
 def _too_many_login_failures(ip):
-    """En fazla LOGIN_MAX_FAILURES başarısız deneme / LOGIN_WINDOW / IP."""
     with _login_failures_lock:
         now = time.time()
         stamps = [ts for ts in _login_failures.get(ip, [])

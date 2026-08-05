@@ -1,10 +1,9 @@
-"""The RMS level series the waveform draws from; feeds the silence check."""
+
 
 import unittest
 
 import app.rms as rms
 from tests.support import DikteTest, make_wav, silence, speech, tone
-
 
 class Rms(DikteTest):
     def test_silence_is_near_zero(self):
@@ -16,7 +15,6 @@ class Rms(DikteTest):
         self.assertGreater(max(rms.series(wav)), 0.1)
 
     def test_series_length_is_blocks(self):
-        # 1 second at 16 kHz, 1024-frame blocks -> 15 full blocks + 640 samples.
         wav = make_wav(self.path("tone.wav"), tone(1.0))
         series = rms.series(wav)
         self.assertEqual(len(series), 16)
@@ -28,7 +26,6 @@ class Rms(DikteTest):
     def test_a_missing_file_raises(self):
         with self.assertRaises(OSError):
             rms.series(str(self.path("nope.wav")))
-
 
 if __name__ == "__main__":
     unittest.main()

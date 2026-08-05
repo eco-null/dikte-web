@@ -1,9 +1,3 @@
-"""Tek heavy job: kuyruk yok, çakışmada BusyError.
-
-İş, arka planda bir thread'de çalışır; `emit(text)` aşamayı günceller.
-Sonuç ve hata job kaydında saklanır, `MAX_JOBS` üzerindeki bitenler temizlenir.
-"""
-
 import threading
 import time
 import uuid
@@ -17,7 +11,7 @@ class Job:
     def __init__(self, kind):
         self.id = uuid.uuid4().hex
         self.kind = kind
-        self.status = "queued"          # queued | running | done | failed
+        self.status = "queued"
         self.stage = ""
         self.result = None
         self.error = ""
@@ -42,10 +36,6 @@ class JobManager:
         self.max_jobs = max_jobs
 
     def submit(self, kind, work):
-        """work(emit) bir thread'de çalışır; job_id döner.
-
-        Zaten bir iş çalışıyorsa BusyError fırlatır.
-        """
         with self._lock:
             if self._busy is not None:
                 raise BusyError()
@@ -87,7 +77,6 @@ class JobManager:
             self._jobs.pop(job.id, None)
 
 
-# The one manager the app routes share.
 _manager = JobManager()
 
 

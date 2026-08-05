@@ -1,12 +1,5 @@
-"""Webapp'in dikte ayarlarından gördüğü dilim.
-
-Masaüstünün config.json'unu okur/yazar. Web yalnızca bu anahtarları sunar;
-API key'ler çıkışta maskelenir, yalnızca yeni boş-olmayan değerle değişir.
-"""
-
 import config as cfg
 
-# (tip, seçenekler). tip: str | bool | int | float | select
 WEB_FIELDS = {
     "ui_language": ("select", ["auto", "tr", "en"]),
     "transcribe_provider": ("select", ["openai", "groq", "openrouter", "local"]),
@@ -56,9 +49,9 @@ WEB_FIELDS = {
     "meeting_participants": ("str", []),
     "assistant_provider": ("select", ["openrouter", "omniroute"]),
     "assistant_openrouter_model": ("str", []),
-"assistant_omniroute_base_url": ("str", []),
-"assistant_omniroute_model": ("str", []),
-"assistant_omniroute_api_key": ("str", []),
+    "assistant_omniroute_base_url": ("str", []),
+    "assistant_omniroute_model": ("str", []),
+    "assistant_omniroute_api_key": ("str", []),
     "assistant_reasoning": ("str", []),
     "assistant_prompt": ("str", []),
     "assistant_session_minutes": ("int", []),
@@ -103,13 +96,10 @@ def present(conf):
 
 
 def apply(conf, updates):
-    """Gelen güncellemeleri uygula ve kaydet; geçersiz/bilinmeyen anahtarları atla."""
     for key, raw in (updates or {}).items():
         if key not in WEB_FIELDS:
             continue
         if key in MASKED and str(raw).strip() == redact(key, conf[key]):
-            # The settings page sent the masked placeholder back; keep the
-            # stored key rather than writing the redaction over it.
             continue
         if key in MASKED and not str(raw).strip():
             continue

@@ -1,5 +1,3 @@
-// MediaRecorder + WebAudio seviye ölçer; bitince /api/dictate'e yükler,
-// sonra app.js pollJob ile sonucu çeker.
 (function () {
   let recorder = null, stream = null, chunks = [], analyser = null, raf = null;
   const canvas = document.getElementById("meter");

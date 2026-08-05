@@ -31,8 +31,5 @@ services:
 volumes:
   dikte_data:
 
-# CasaOS uygulama ikonu. CasaOS, bu compose dosyasının bulunduğu dizindeki
-# icon.png dosyasına bakar (icon alanı URL de kabul eder — kendi domain'inle
-# değiştirebilirsin). SVG de repo'da: app/static/logo.svg
 x-casaos:
   icon: ./icon.png

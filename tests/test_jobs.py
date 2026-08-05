@@ -1,10 +1,9 @@
-"""The one-heavy-job-at-a-time manager the routes run on."""
+
 
 import time
 import unittest
 
 import app.jobs as jobs_module
-
 
 class Jobs(unittest.TestCase):
     def setUp(self):
@@ -53,7 +52,6 @@ class Jobs(unittest.TestCase):
         second = self.manager.submit("t", lambda emit: 2)
         third = self.manager.submit("t", lambda emit: 3)
         time.sleep(0.3)
-        # The next submit is when the overflow is noticed.
         fourth = self.manager.submit("t", lambda emit: 4)
         self.assertIsNone(self.manager.get(first))
         self.assertIsNotNone(self.manager.get(second))
@@ -76,7 +74,7 @@ class Jobs(unittest.TestCase):
         for _ in range(5):
             ids.append(self.manager.submit("t", lambda emit: 1))
         time.sleep(0.2)
-        self.manager.submit("t", lambda emit: 0)  # triggers prune
+        self.manager.submit("t", lambda emit: 0)
         kept = [jid for jid in ids if self.manager.get(jid) is not None]
         self.assertLessEqual(len(kept), self.manager.max_jobs)
 
@@ -88,7 +86,6 @@ class Jobs(unittest.TestCase):
         self.assertEqual(self.manager.get(first).status, "failed")
         second = self.manager.submit("t", lambda emit: 2)
         self.assertEqual(self.manager.get(second).status, "done")
-
 
 if __name__ == "__main__":
     unittest.main()
