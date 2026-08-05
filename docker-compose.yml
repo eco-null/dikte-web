@@ -1,29 +1,27 @@
 services:
   dikte-web:
     image: ghcr.io/eco-null/dikte-web:latest
+    icon: "https://github.com/eco-null/dikte-web/blob/main/icon.png?raw=true"
     container_name: dikte-web
+    restart: unless-stopped
     ports:
       - "8000:8000"
-    user: "dikte"
-    cap_drop: [ALL]
-    security_opt:
-      - "no-new-privileges:true"
-    tmpfs:
-      - /tmp
     environment:
-      DIKTE_WEB_PASSWORD: "${DIKTE_WEB_PASSWORD:-}"
-      OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
-      GROQ_API_KEY: "${GROQ_API_KEY:-}"
-      OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
-      OMNIROUTE_BASE_URL: "${OMNIROUTE_BASE_URL:-http://host.docker.internal:20128/v1}"
+      DIKTE_WEB_PASSWORD: "CHANGE_ME"
+      OPENAI_API_KEY: ""
+      GROQ_API_KEY: ""
+      OPENROUTER_API_KEY: ""
+      OMNIROUTE_BASE_URL: "http://host.docker.internal:20128/v1"
       DIKTE_COOKIE_SECURE: "1"
       XDG_CONFIG_HOME: /data/config
       XDG_DATA_HOME: /data/share
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
-      - dikte_data:/data
-    restart: unless-stopped
-
-volumes:
-  dikte_data:
+      - /DATA/AppData/dikte-web:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
