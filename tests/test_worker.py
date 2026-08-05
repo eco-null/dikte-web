@@ -10,7 +10,8 @@ from tests.support import (DikteTest, fake_urlopen, make_wav, silence,
 
 class Pipeline(DikteTest):
     def conf(self, **over):
-        values = {"transcribe_provider": "openai", "openai_api_key": "sk-test",
+        values = {"transcribe_provider": "openai",
+                  "transcribe_openai_key": "sk-test",
                   "skip_silent": True, "cleanup_enabled": False}
         values.update(over)
         return self.config(**values)

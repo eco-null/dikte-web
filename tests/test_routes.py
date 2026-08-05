@@ -22,8 +22,8 @@ class RouteTest(DikteTest):
         self.client = TestClient(fastapi_app)
         self.addCleanup(self.client.close)
         fresh = cfg.Config()
+        fresh["transcribe_openai_key"] = "sk-test"
         web_settings.apply(fresh, {"transcribe_provider": "openai",
-                                   "openai_api_key": "sk-test",
                                    "openrouter_api_key": "sk-or-test",
                                    "cleanup_enabled": False})
         fastapi_app.state.conf = fresh

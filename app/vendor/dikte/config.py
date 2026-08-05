@@ -657,6 +657,27 @@ class Config:
     def omniroute_key(self):
         return self.api_key("assistant_omniroute_api_key")
 
+    def _target(self, service, name):
+        """An api.Target for `service` (transcribe|cleanup|assistant) and provider `name`."""
+        if name == "local":
+            if service == "transcribe":
+                return api.Target("local", t("Local whisper"), "", "",
+                                  self[f"{service}_local_model"])
+            return api.Target("local", t("Local llama.cpp"), "", "",
+                              self[f"{service}_local_model"])
+        url = self[f"{service}_{name}_url"]
+        key = self[f"{service}_{name}_key"]
+        model = self[f"{service}_{name}_model"]
+        if name == "openai":
+            service_name = t("OpenAI")
+        elif name == "groq":
+            service_name = t("Groq")
+        elif name == "openrouter":
+            service_name = t("OpenRouter")
+        else:
+            service_name = t("OmniRoute")
+        return api.Target(name, service_name, key, url, model)
+
     def transcribe_target(self):
         """Key, endpoint and model for whichever provider does speech to text.
 
@@ -667,23 +688,28 @@ class Config:
         anyway.
         """
         name = self["transcribe_provider"]
-        if name == "local":
-            return api.Target("local", t("Local whisper"), "", "",
-                              self["local_model"])
-        if name not in TRANSCRIBERS:
-            # A config written by a fork, or by a version that dropped one. The
-            # shipped default is not in the table, so this names the hosted one
-            # to land on rather than reading it from there.
+        if name not in ("openai", "groq", "openrouter", "omniroute", "local"):
             name = "openai"
-        who = TRANSCRIBERS[name]
-        return api.Target(name, who.service, self.api_key(who.key),
-                          self[who.url], self[who.model])
+        return self._target("transcribe", name)
+
+    def cleanup_target(self):
+        name = self["cleanup_provider"]
+        if name not in ("openai", "groq", "openrouter", "omniroute", "local"):
+            name = "openrouter"
+        return self._target("cleanup", name)
+
+    def assistant_target(self):
+        name = self["assistant_provider"]
+        if name not in ("openai", "groq", "openrouter", "omniroute", "local"):
+            name = "openrouter"
+        return self._target("assistant", name)
 
     def transcribe_ready(self):
         """Whether speech to text could run right now, without opening Settings."""
         if self["transcribe_provider"] == "local":
             return self.local_whisper_ready()
-        return bool(self.transcribe_target().api_key)
+        target = self.transcribe_target()
+        return bool(target.api_key) or target.provider == "omniroute"
 
     def local_whisper_ready(self):
         return bool(ggml.program_path(ggml.WHISPER, self["local_binary"])

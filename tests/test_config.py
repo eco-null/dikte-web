@@ -166,17 +166,17 @@ class TranscribeTarget(DikteTest):
 
     def test_openai_when_it_is_picked(self):
         target = self.config(transcribe_provider="openai",
-                             openai_api_key="sk-test").transcribe_target()
+                             transcribe_openai_key="sk-test").transcribe_target()
         self.assertEqual(target.provider, "openai")
         self.assertEqual(target.service, "OpenAI")
         self.assertEqual(target.api_key, "sk-test")
         self.assertEqual(target.base_url, api.OPENAI_URL)
-        self.assertEqual(target.model, cfg.DEFAULTS["transcribe_model"])
+        self.assertEqual(target.model, cfg.DEFAULTS["transcribe_openai_model"])
 
     def test_openrouter_when_it_is_picked(self):
         conf = self.config(transcribe_provider="openrouter",
-                           openrouter_api_key="sk-or-test",
-                           openrouter_transcribe_model="openai/whisper-1")
+                           transcribe_openrouter_key="sk-or-test",
+                           transcribe_openrouter_model="openai/whisper-1")
         target = conf.transcribe_target()
         self.assertEqual(target.provider, "openrouter")
         self.assertEqual(target.service, "OpenRouter")
@@ -184,8 +184,8 @@ class TranscribeTarget(DikteTest):
         self.assertEqual(target.model, "openai/whisper-1")
 
     def test_groq_when_it_is_picked(self):
-        conf = self.config(transcribe_provider="groq", groq_api_key="gsk-test",
-                           groq_transcribe_model="whisper-large-v3")
+        conf = self.config(transcribe_provider="groq", transcribe_groq_key="gsk-test",
+                           transcribe_groq_model="whisper-large-v3")
         target = conf.transcribe_target()
         self.assertEqual(target.provider, "groq")
         self.assertEqual(target.service, "Groq")
@@ -200,8 +200,45 @@ class TranscribeTarget(DikteTest):
 
     def test_a_self_hosted_endpoint(self):
         conf = self.config(transcribe_provider="openai",
-                           openai_base_url="http://localhost:8080/v1")
+                           transcribe_openai_url="http://localhost:8080/v1")
         self.assertEqual(conf.transcribe_target().base_url, "http://localhost:8080/v1")
+
+    def test_transcribe_target_uses_per_service_keys(self):
+        conf = self.config(transcribe_provider="openai",
+                           transcribe_openai_url="https://custom.example/v1",
+                           transcribe_openai_key="sk-x",
+                           transcribe_openai_model="m1")
+        target = conf.transcribe_target()
+        self.assertEqual(target.provider, "openai")
+        self.assertEqual(target.base_url, "https://custom.example/v1")
+        self.assertEqual(target.api_key, "sk-x")
+        self.assertEqual(target.model, "m1")
+
+    def test_transcribe_target_omniroute(self):
+        conf = self.config(transcribe_provider="omniroute",
+                           transcribe_omniroute_url="http://127.0.0.1:9999/v1",
+                           transcribe_omniroute_key="sk-o",
+                           transcribe_omniroute_model="whisper-small")
+        target = conf.transcribe_target()
+        self.assertEqual(target.provider, "omniroute")
+        self.assertEqual(target.base_url, "http://127.0.0.1:9999/v1")
+
+    def test_cleanup_and_assistant_targets(self):
+        conf = self.config(cleanup_provider="groq",
+                           cleanup_groq_url="https://g.example/v1",
+                           cleanup_groq_key="sk-g",
+                           cleanup_groq_model="m-clean",
+                           assistant_provider="omniroute",
+                           assistant_omniroute_url="http://127.0.0.1:7777/v1",
+                           assistant_omniroute_key="sk-a",
+                           assistant_omniroute_model="m-agent")
+        ct = conf.cleanup_target()
+        self.assertEqual(ct.model, "m-clean")
+        self.assertEqual(ct.api_key, "sk-g")
+        at = conf.assistant_target()
+        self.assertEqual(at.model, "m-agent")
+        self.assertEqual(at.api_key, "sk-a")
+        self.assertEqual(at.base_url, "http://127.0.0.1:7777/v1")
 
 class CleanupPrompt(DikteTest):
     def test_the_default_follows_the_interface_language(self):
