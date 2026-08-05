@@ -294,8 +294,13 @@ class PagesTest(DikteTest):
         body = self.client.get("/settings").text
         # a stored model must stay selected even when the provider list is
         # empty (no key, offline), instead of collapsing to "Custom"
-        self.assertIn('select.value = current || "__custom__";', body)
-        self.assertIn("if (current && models.indexOf(current) === -1)", body)
+        self.assertIn('select.value = chosen || "__custom__";', body)
+        self.assertIn("if (chosen && models.indexOf(chosen) === -1)", body)
+
+    def test_settings_only_sends_the_active_model_pair_value(self):
+        body = self.client.get("/settings").text
+        self.assertIn("const active = input && !input.disabled ? input : select;", body)
+        self.assertIn("seen.has(el.name)", body)
 
     def test_omniroute_and_local_model_fields_are_text_inputs(self):
         body = self.client.get("/settings").text

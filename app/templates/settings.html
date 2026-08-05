@@ -145,6 +145,7 @@
     const svc = select.dataset.service || "";
     const prov = select.dataset.provider || "";
     const current = select.dataset.current || "";
+    const chosen = select.value || current;
     let models = [];
     try {
       const resp = await fetch("/api/models/list?provider=" + encodeURIComponent(prov) +
@@ -155,16 +156,17 @@
       }
     } catch (err) { models = []; }
     const custom = new Option("{{ t("Custom…") }}", "__custom__");
-    const hasModels = models.length > 0;
     select.textContent = "";
     // The stored model must stay selected even when the provider has no
     // listing (no key, offline) or the model is not in the current list.
-    if (current && models.indexOf(current) === -1) {
-      select.appendChild(new Option(current, current, true, true));
+    // `chosen` keeps whatever the user picked while the list was loading,
+    // so a slow fetch cannot silently revert their choice.
+    if (chosen && models.indexOf(chosen) === -1) {
+      select.appendChild(new Option(chosen, chosen, true, true));
     }
     models.forEach((m) => select.appendChild(new Option(m, m)));
     select.appendChild(custom);
-    select.value = current || "__custom__";
+    select.value = chosen || "__custom__";
     syncPair(select, "input[data-model-input]");
   }
 
@@ -212,6 +214,12 @@
   document.querySelectorAll("select.provider-select-el").forEach((sel) => {
     sel.addEventListener("change", () => { applyProviderVisibility(); refreshProviderModels(); scheduleSave(); });
   });
+  document.querySelectorAll("select[data-model-select]").forEach((sel) => {
+    sel.addEventListener("change", () => { syncPair(sel, "input[data-model-input]"); scheduleSave(); });
+  });
+  document.querySelectorAll("select[data-mic-select]").forEach((sel) => {
+    sel.addEventListener("change", () => { syncPair(sel, "input[data-mic-input]"); scheduleSave(); });
+  });
   applyProviderVisibility();
   refreshProviderModels();
   loadMicDevices();
@@ -229,10 +237,30 @@
 
   function collectSettings() {
     const out = {};
+    // A model-pair is a <select> and a hidden <input> sharing one name; the
+    // input carries the value the moment the user typed a custom model, the
+    // select the value the rest of the time. Only the active one must win, so
+    // a disabled sibling (which holds a stale value) is skipped.
+    const seen = new Set();
+    const take = (name, value) => {
+      out[name] = value;
+      if (form.querySelector(`[name="${name}"][data-kind="bool"]`)) {
+        out[name] = value === "on";
+      }
+      seen.add(name);
+    };
     for (const el of form.elements) {
-      if (!el.name) continue;
-      out[el.name] = el.value;
-      if (el.dataset.kind === "bool") out[el.name] = el.value === "on";
+      if (!el.name || seen.has(el.name)) continue;
+      if (el.closest(".model-pair")) {
+        const pair = el.closest(".model-pair");
+        const select = pair.querySelector("select");
+        const input = pair.querySelector("input");
+        const active = input && !input.disabled ? input : select;
+        if (active) take(el.name, active.value);
+        seen.add(el.name);
+      } else {
+        take(el.name, el.value);
+      }
     }
     return out;
   }
