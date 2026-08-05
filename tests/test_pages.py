@@ -219,6 +219,23 @@ class PagesTest(DikteTest):
         self.assertIn('name="transcribe_omniroute_url"', body)
         self.assertIn('name="assistant_openai_key"', body)
 
+    def test_settings_only_selected_provider_visible_server_side(self):
+        import re
+        body = self.client.get("/settings").text
+        # transcribe defaults to openai -> only openai block visible
+        for p in ("groq", "openrouter", "omniroute", "local"):
+            blk = re.search(rf'<div class="provider-fields" data-service="transcribe" data-provider="{p}"([^>]*)>', body)
+            self.assertIsNotNone(blk, f"missing transcribe/{p} block")
+            self.assertIn("hidden", blk.group(1), f"transcribe/{p} not hidden")
+        sel = re.search(r'<div class="provider-fields" data-service="transcribe" data-provider="openai"([^>]*)>', body)
+        self.assertIsNotNone(sel, "missing transcribe/openai block")
+        self.assertNotIn("hidden", sel.group(1), "transcribe/openai should be visible")
+
+    def test_css_hides_provider_blocks(self):
+        css = self.client.get("/static/app.css").text
+        self.assertIn("provider-fields[hidden]", css)
+        self.assertIn("display: none !important", css)
+
     def test_result_textareas_auto_grow_in_css(self):
         css = self.client.get("/static/app.css").text
         self.assertIn("min-height: 120px", css)

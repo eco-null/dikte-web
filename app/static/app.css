@@ -193,6 +193,7 @@ main { max-width: 900px; margin: 0 auto; padding: var(--space-5) var(--space-4) 
 
 .provider-select { margin-bottom: var(--space-4); }
 .provider-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-3); }
+.provider-fields[hidden], .model-pair select[hidden], .model-pair input[hidden] { display: none !important; }
 
 .auth { max-width: 380px; margin: var(--space-8) auto; }
 .auth-card { padding: var(--space-6); }
