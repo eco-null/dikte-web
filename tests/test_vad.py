@@ -103,6 +103,8 @@ class Hallucinations(DikteTest):
     def test_a_stock_phrase_from_a_short_clip(self):
         self.assertTrue(vad.looks_like_hallucination("Altyazı M.K.", 2.0))
         self.assertTrue(vad.looks_like_hallucination("Thanks for watching!", 2.0))
+        self.assertTrue(vad.looks_like_hallucination("Thank you", 2.0))
+        self.assertTrue(vad.looks_like_hallucination("Thank you very much", 2.0))
 
     def test_the_same_phrase_repeated(self):
         self.assertTrue(vad.looks_like_hallucination(

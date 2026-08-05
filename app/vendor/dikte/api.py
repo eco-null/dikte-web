@@ -264,6 +264,20 @@ def _extract_error(body):
     return body[:300]
 
 
+def _language_hint(language):
+    """A one-line instruction telling the model which language the audio is in.
+
+    Groq ignores the ``language`` field of /audio/transcriptions, so the only
+    way to keep Turkish (or any non-English) speech from coming out as English
+    is to say so in the prompt.
+    """
+    if language == "tr":
+        return t("The audio is in Turkish. Transcribe it in Turkish.")
+    if language == "en":
+        return t("The audio is in English. Transcribe it in English.")
+    return ""
+
+
 def _multipart(fields, file_field, file_path):
     """Build a multipart/form-data body; returns (body, content-type)."""
     boundary = "----dikte" + secrets.token_hex(16)
@@ -344,11 +358,22 @@ def _transcribe_request(target, audio_path, language, prompt, response_format,
     fields = [("model", target.model), ("response_format", response_format)]
     if language and language != "auto":
         fields.append(("language", language))
-    # OpenRouter takes the hint field and throws it away, so spare it the bytes.
-    # The same words still reach the cleanup model as a glossary. whisper.cpp
-    # takes it as the initial prompt, the way OpenAI does.
-    if prompt and target.provider != "openrouter":
-        fields.append(("prompt", prompt))
+    # OpenRouter takes the prompt field and throws it away, so spare it the
+    # bytes. The same words still reach the cleanup model as a glossary.
+    # whisper.cpp takes it as the initial prompt, the way OpenAI does.
+    if target.provider != "openrouter":
+        # Groq ignores the language field, so the same hint is repeated in the
+        # prompt, which it does read. Without it, Turkish speech gets
+        # transcribed as English (a phonetic lookalike), which is worse than
+        # the barest default prompt.
+        if language and language not in ("auto", ""):
+            hint = _language_hint(language)
+            if hint:
+                fields.append(("prompt", hint + ("\n\n" + prompt if prompt else "")))
+            elif prompt:
+                fields.append(("prompt", prompt))
+        elif prompt:
+            fields.append(("prompt", prompt))
     if granularity:
         fields.append(("timestamp_granularities[]", granularity))
     body, ctype = _multipart(fields, "file", audio_path)

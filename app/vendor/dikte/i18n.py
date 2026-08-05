@@ -141,6 +141,8 @@ TR = {
     "Saved successfully.": "Başarıyla kaydedildi.",
     "Settings are saved automatically as you type.": "Ayarlar yazarken otomatik kaydedilir.",
     "Autosaving…": "Otomatik kayıt…",
+    "The audio is in Turkish. Transcribe it in Turkish.": "Ses kaydı Türkçe. Türkçe yazıya dök.",
+    "The audio is in English. Transcribe it in English.": "Ses kaydı İngilizce. İngilizce yazıya dök.",
     "Interface language": "Arayüz dili",
     "Automatic (system)": "Otomatik (sistem)",
     "Turkish": "Türkçe",

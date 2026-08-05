@@ -181,6 +181,22 @@ class Transcribe(DikteTest):
         self.assertEqual(multipart_fields(calls[0])["language"], "tr")
         self.assertNotIn("language", multipart_fields(calls[1]))
 
+    def test_the_language_is_also_repeated_in_the_prompt(self):
+        # Groq ignores the language field, so the hint must ride in the
+        # prompt to keep non-English audio from being transcribed as English.
+        with fake_urlopen({"text": "hi"}) as calls:
+            api.transcribe(GROQ, self.wav, language="tr", prompt="Paraşüt")
+        fields = multipart_fields(calls[0])
+        self.assertIn("Turkish", fields["prompt"])
+        self.assertIn("Paraşüt", fields["prompt"])
+
+    def test_no_prompt_is_sent_to_openrouter(self):
+        with fake_urlopen({"text": "hi"}) as calls:
+            api.transcribe(OPENROUTER, self.wav, language="tr", prompt="Paraşüt")
+        fields = multipart_fields(calls[0])
+        self.assertNotIn("prompt", fields)
+        self.assertEqual(fields["language"], "tr")
+
     def test_the_glossary_goes_everywhere_but_openrouter(self):
 
         with fake_urlopen({"text": "hi"}) as calls:

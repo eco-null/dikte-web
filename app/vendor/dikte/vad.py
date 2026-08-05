@@ -23,6 +23,7 @@ HALLUCINATIONS = {
     "izlediginiz icin tesekkur ederim", "izlediginiz icin tesekkur ederiz",
     "kanalima abone olmayi unutmayin", "altyazi mk altyazi mk",
     "thanks for watching", "thank you for watching", "thanks for watching!",
+    "thank you", "thank you.", "thank you very much",
     "please subscribe", "subscribe to my channel", "you", "bye",
     "mbc masr", "sous titres realises par la communaute damara org",
     "amara org community", "sous titrage st 501",
