@@ -334,7 +334,10 @@ def _transcribe_request(target, audio_path, language, prompt, response_format,
         # bill running. Locally the only thing being spent is time.
         target = target._replace(base_url=serving(ggml.whisper))
         timeout = max(timeout, LOCAL_TIMEOUT)
-    elif not target.api_key:
+    # An OmniRoute-style agent is allowed to run without a key, the same way
+    # cleanup and chat let it; transcribe_ready() already counts it as ready
+    # with nothing set. Asking it for a made-up bearer token gains nothing.
+    elif not target.api_key and target.provider != "omniroute":
         raise ApiError(t("{service} API key is empty. Add it in Settings.",
                          service=target.service))
     _assert_safe_url(target.base_url)
@@ -670,3 +673,34 @@ def openai_models(api_key, base_url=OPENAI_URL, service="OpenAI"):
     ids = [m["id"] for m in data.get("data", []) if m.get("id")]
     audio = [i for i in ids if "transcribe" in i or "whisper" in i]
     return sorted(audio or ids)
+
+
+def groq_models(api_key, base_url=GROQ_URL):
+    """Model ids available on Groq, which serves OpenAI's /models endpoint.
+
+    `base_url` is a parameter only because a self-hosted Groq-compatible server
+    answers the same call; the default is Groq itself.
+    """
+    return openai_models(api_key, base_url, "Groq")
+
+
+def list_models(provider, api_key="", base_url=""):
+    """The model ids a provider can be asked to use, or [] when it cannot say.
+
+    openai and groq are read from their OpenAI-compatible /models endpoint and
+    openrouter from its own; omniroute and local have no listing and the caller
+    falls back to a free-text field. Any failure — a key that was never set, one
+    the service refused, the network down — comes back as [] rather than an
+    error, because the dropdown is decoration and a missing list should degrade
+    to typing the id in.
+    """
+    try:
+        if provider == "openai":
+            return openai_models(api_key, base_url or OPENAI_URL)
+        if provider == "groq":
+            return groq_models(api_key, base_url or GROQ_URL)
+        if provider == "openrouter":
+            return openrouter_models(api_key)
+    except ApiError:
+        pass
+    return []

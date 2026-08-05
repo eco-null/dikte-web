@@ -11,7 +11,7 @@ from fastapi import HTTPException
 import config as cfg
 
 from app import jobs, settings as web_settings
-from tests.support import DikteTest, fake_urlopen, make_wav, silence, speech
+from tests.support import DikteTest, fake_urlopen, make_wav, silence, speech, url_error
 
 class RouteTest(DikteTest):
 
@@ -156,6 +156,61 @@ class Dictation(RouteTest):
         self.assertEqual(job["status"], "done", job)
         kwargs = cfgw.call_args.kwargs
         self.assertEqual(kwargs["model"], "ggml-small.bin")
+
+    def test_groq_dictation_with_only_the_groq_key(self):
+        conf = cfg.Config()
+        web_settings.apply(conf, {"transcribe_provider": "groq",
+                                  "cleanup_enabled": False})
+        conf["transcribe_groq_key"] = "gsk-groq"
+        from app.main import app as fastapi_app
+        fastapi_app.state.conf = conf
+        clip = make_wav(self.path("clip.wav"), speech(1.0))
+        with mock.patch("filetranscribe._to_wav", return_value=str(clip)), \
+                mock.patch("api.transcribe", return_value="groq metni") as tr:
+            resp = self.client.post(
+                "/api/dictate",
+                files={"audio": ("rec.webm", b"fake-webm", "audio/webm")})
+            job = self.wait_job(resp.json()["job_id"])
+        self.assertEqual(job["status"], "done", job)
+        self.assertIn("groq metni", job["result"]["text"])
+        target = tr.call_args.args[0]
+        self.assertEqual(target.provider, "groq")
+        self.assertEqual(target.api_key, "gsk-groq")
+
+class ModelList(RouteTest):
+    def test_returns_the_configured_provider_s_models(self):
+        with fake_urlopen({"data": [{"id": "gpt-4o"}, {"id": "whisper-1"},
+                                    {"id": "gpt-4o-transcribe"}]}):
+            resp = self.client.get(
+                "/api/models/list?provider=openai&svc=transcribe")
+        self.assertEqual(resp.status_code, 200)
+        body = resp.json()
+        self.assertEqual(body["models"], ["gpt-4o-transcribe", "whisper-1"])
+        self.assertIsNone(body["error"])
+        self.assertNotIn("sk-test", resp.text)
+
+    def test_the_provider_without_a_listing_comes_back_empty(self):
+        resp = self.client.get(
+            "/api/models/list?provider=omniroute&svc=transcribe")
+        self.assertEqual(resp.json(), {"models": [], "error": None})
+
+    def test_an_unknown_service_or_provider_comes_back_empty(self):
+        for query in ("provider=bogus&svc=transcribe",
+                      "provider=openai&svc=bogus"):
+            with self.subTest(query=query):
+                resp = self.client.get(f"/api/models/list?{query}")
+                self.assertEqual(resp.json()["models"], [])
+
+    def test_a_network_failure_comes_back_empty(self):
+        with fake_urlopen(url_error("no route to host")):
+            resp = self.client.get(
+                "/api/models/list?provider=openai&svc=transcribe")
+        self.assertEqual(resp.json(), {"models": [], "error": None})
+
+    def test_unauthenticated_is_401(self):
+        self.client.cookies.clear()
+        resp = self.client.get("/api/models/list?provider=openai&svc=transcribe")
+        self.assertEqual(resp.status_code, 401)
 
 class Files(RouteTest):
     def test_a_file_transcribes_and_downloads(self):

@@ -145,6 +145,30 @@ def list_models(request: Request):
     return out
 
 
+@router.get("/api/models/list")
+def provider_models(request: Request, provider: str = "", svc: str = "",
+                    url: str = "", key: str = ""):
+    """The model ids a hosted provider offers, for the settings dropdown.
+
+    The key and the base URL are read out of the per-service settings, not taken
+    from the caller: the client only says which provider and service it is
+    looking at, and the stored key stays in the config (and out of the reply).
+    Providers without a listing (omniroute, local) come back empty, and so does
+    any failure — the UI degrades to a free-text field.
+    """
+    conf = _conf(request)
+    models = []
+    error = None
+    target = conf.target_for(svc, provider)
+    if target is not None and target.provider not in ("omniroute", "local"):
+        try:
+            models = api.list_models(target.provider, key or target.api_key,
+                                     url or target.base_url)
+        except Exception as exc:
+            error = str(exc)
+    return {"models": models, "error": error}
+
+
 @router.post("/api/models/install")
 def install_model(request: Request, payload: dict = Body(...)):
     kind = str(payload.get("kind") or "")

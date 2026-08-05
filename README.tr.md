@@ -76,15 +76,12 @@ tasarlanmıştır.
 
    ```dotenv
    DIKTE_WEB_PASSWORD=şifreniz
-   OPENAI_API_KEY=sk-...            # opsiyonel
-   GROQ_API_KEY=...                 # opsiyonel
-   OPENROUTER_API_KEY=...           # opsiyonel
-   OMNIROUTE_BASE_URL=http://host.docker.internal:20128/v1   # opsiyonel
    ```
 
-   API anahtarları yalnızca gerçekte kullandığın sağlayıcılar için gerekir.
-   Değerler isteğe bağlıdır; `DIKTE_WEB_PASSWORD` boş bırakılırsa uygulama
-   kendisi bir şifre üretir ve veri volume'una kaydeder.
+   Sağlayıcı API anahtarları buraya **yazılmaz** — bunları web **Ayarlar**
+   sayfasında (Transkripsiyon / Ajan bölümleri) yapılandır. Değerler isteğe
+   bağlıdır; `DIKTE_WEB_PASSWORD` boş bırakılırsa uygulama kendisi bir şifre
+   üretir ve veri volume'una kaydeder.
 
 2. Uygulamayı başlat:
 
@@ -158,8 +155,9 @@ giriş noktasıdır.
 | `assistant_omniroute_model` | model kimliği (ör. `gemma-3-4b-it`) |
 | `assistant_omniroute_api_key` | **opsiyonel** — doluysa `Bearer` token olarak gönderilir; anahtarsız yerel uçlar için boş bırak |
 
-Ayrıca `OMNIROUTE_BASE_URL` ortam değişkeniyle varsayılan uç adresini
-ezebilirsin. Özel veya yerel bir adrese çözümlenen her taban URL, `host.docker.internal`,
+Ayrıca uç adresini **Ayarlar**'da — yukarıdaki `assistant_omniroute_base_url`
+alanı — belirleyebilirsin; artık `OMNIROUTE_BASE_URL` ortam değişkeni yok.
+Özel veya yerel bir adrese çözümlenen her taban URL, `host.docker.internal`,
 `localhost` ve `127.0.0.1` dışındaysa reddedilir (SSRF koruması).
 
 ### Docker'sız çalıştırma
@@ -188,11 +186,11 @@ Ana makinedeki gereksinimler:
 | `DIKTE_WEB_PASSWORD` | üretilir | Tek giriş şifresi. Boşsa rastgele üretilir, `web_password` dosyasına yazılır (0600 izni, günlüğe yazılmaz). |
 | `XDG_CONFIG_HOME` | `~/.config` | `dikte/config.json` için taban. |
 | `XDG_DATA_HOME` | `~/.local/share` | `dikte/` verisi için taban: geçmiş, toplantılar, kayıtlar, `web_password`, `assistant.json`. |
-| `OPENAI_API_KEY` | — | Kolaylık env'i; asıl kaynak Ayarlar'dır. |
-| `GROQ_API_KEY` | — | Aynı. |
-| `OPENROUTER_API_KEY` | — | Aynı. |
-| `OMNIROUTE_BASE_URL` | `http://host.docker.internal:20128/v1` | OmniRoute ajan ucunun varsayılanını ezme. |
 | `DIKTE_MAX_UPLOAD` | `1073741824` (1 GB) | Maks. yükleme boyutu (üstüne 413). |
+
+Sağlayıcı API anahtarları (OpenAI, Groq, OpenRouter, OmniRoute) ortamdan
+**okunmaz** — Ayarlar'da (`config.json` içinde) saklanır ve web arayüzünden
+yönetilir.
 
 ### Veri düzeni
 

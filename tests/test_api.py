@@ -520,3 +520,40 @@ class ModelLists(DikteTest):
             api.openai_models("", api.GROQ_URL, "Groq")
         self.assertIn("Groq", str(caught.exception))
 
+class ListModels(DikteTest):
+    def test_openai_returns_its_audio_models(self):
+        with fake_urlopen({"data": [{"id": "gpt-4o"}, {"id": "whisper-1"},
+                                    {"id": "gpt-4o-transcribe"}]}):
+            self.assertEqual(api.list_models("openai", "sk-test", api.OPENAI_URL),
+                             ["gpt-4o-transcribe", "whisper-1"])
+
+    def test_groq_reads_its_own_endpoint(self):
+        with fake_urlopen({"data": [{"id": "whisper-large-v3"},
+                                    {"id": "llama-3.3-70b"}]}) as calls:
+            models = api.list_models("groq", "gsk-test", api.GROQ_URL)
+        self.assertEqual(calls[0].full_url, "https://api.groq.com/openai/v1/models")
+        self.assertEqual(models, ["whisper-large-v3"])
+
+    def test_openrouter_uses_its_own_listing(self):
+        with fake_urlopen({"data": [{"id": "z/model"}, {"id": "a/model"}]}):
+            self.assertEqual(api.list_models("openrouter", "sk-or-test"),
+                             ["a/model", "z/model"])
+
+    def test_omniroute_has_no_listing(self):
+        self.assertEqual(api.list_models("omniroute", "", ""), [])
+
+    def test_local_has_no_listing(self):
+        self.assertEqual(api.list_models("local", "", ""), [])
+
+    def test_a_network_failure_returns_empty(self):
+        with fake_urlopen(url_error("name or service not known")):
+            self.assertEqual(api.list_models("openai", "sk-test", api.OPENAI_URL),
+                             [])
+
+    def test_an_empty_key_returns_empty(self):
+        self.assertEqual(api.list_models("openai", "", api.OPENAI_URL), [])
+
+    def test_a_refused_key_returns_empty(self):
+        with fake_urlopen(http_error(401, '{"error": {"message": "bad key"}}')):
+            self.assertEqual(api.list_models("groq", "gsk-bad", api.GROQ_URL), [])
+

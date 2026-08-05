@@ -709,6 +709,18 @@ class Config:
             name = "openrouter"
         return self._target("assistant", name)
 
+    def target_for(self, service, provider):
+        """An api.Target for a given service and provider, or None for a pair
+        this version does not know. Unlike the *_target methods this does not
+        follow the configured provider: the settings page asks about whichever
+        provider its dropdown has moved to, which may not be saved yet.
+        """
+        if service not in ("transcribe", "cleanup", "assistant"):
+            return None
+        if provider not in ("openai", "groq", "openrouter", "omniroute", "local"):
+            return None
+        return self._target(service, provider)
+
     def transcribe_ready(self):
         """Whether speech to text could run right now, without opening Settings."""
         if self["transcribe_provider"] == "local":

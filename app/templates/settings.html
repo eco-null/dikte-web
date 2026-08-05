@@ -1,6 +1,36 @@
 {% extends "base.html" %}
 {% block head %}<meta http-equiv="Cache-Control" content="no-store">{% endblock %}
 {% block content %}
+{% macro field_input(key) %}
+{% if key in fields %}
+<label class="field">{% if key == 'ui_language' %}{{ t("Interface language") }}{% elif key == 'language' %}{{ t("Speech language") }}{% else %}{{ t(key) }}{% endif %}
+  {% if fields[key][0] == 'bool' %}
+  <select name="{{ key }}" data-kind="bool">
+    <option value="on" {% if settings[key] %}selected{% endif %}>{{ t("On") }}</option>
+    <option value="off" {% if not settings[key] %}selected{% endif %}>{{ t("Off") }}</option>
+  </select>
+  {% elif key == 'mic_target' %}
+  <span class="model-pair">
+    <select name="{{ key }}" data-mic-select>
+      {% if settings[key] %}<option value="{{ settings[key] }}" selected>{{ settings[key] }}</option>{% endif %}
+      <option value="__custom__">{{ t("Custom…") }}</option>
+    </select>
+    <input name="{{ key }}" type="text" value="{{ settings[key] or '' }}" placeholder="{{ t(key) }}" data-mic-input{% if settings[key] %} hidden{% endif %}>
+  </span>
+  {% elif fields[key][0] == 'select' %}
+  <select name="{{ key }}">
+    {% for choice in fields[key][1] %}
+    <option value="{{ choice }}" {% if settings[key] == choice %}selected{% endif %}>{{ choice }}</option>
+    {% endfor %}
+  </select>
+  {% elif key.endswith('_prompt') %}
+  <textarea name="{{ key }}" rows="2" placeholder="{{ t(key) }}">{{ settings[key] or '' }}</textarea>
+  {% else %}
+  <input name="{{ key }}" type="text" value="{{ settings[key] or '' }}" placeholder="{{ t(key) }}">
+  {% endif %}
+</label>
+{% endif %}
+{% endmacro %}
 <section class="card">
   <div class="settings-head">
     <h1>{{ t("Settings") }}</h1>
@@ -29,6 +59,15 @@
         <label class="field">{{ t(fk) }}
           {% if fk in masked %}
           <input name="{{ fk }}" type="text" value="" placeholder="{{ settings[fk] or t(fk) }}">
+          {% elif suffix == 'model' and p.name in ['openai', 'groq', 'openrouter'] %}
+          <span class="model-pair">
+            <select name="{{ fk }}" data-model-select data-service="{{ service.key }}"
+                    data-provider="{{ p.name }}" data-current="{{ settings[fk] or '' }}">
+              {% if settings[fk] %}<option value="{{ settings[fk] }}" selected>{{ settings[fk] }}</option>{% endif %}
+              <option value="__custom__">{{ t("Custom…") }}</option>
+            </select>
+            <input name="{{ fk }}" type="text" value="{{ settings[fk] or '' }}" placeholder="{{ t(fk) }}" data-model-input{% if settings[fk] %} hidden{% endif %}>
+          </span>
           {% else %}
           <input name="{{ fk }}" type="text" value="{{ settings[fk] or '' }}" placeholder="{{ t(fk) }}">
           {% endif %}
@@ -52,32 +91,23 @@
         {% endfor %}
       </div>
       {% endfor %}
+      {% if service.key == 'transcribe' %}
+      {{ field_input('language') }}
+      {% endif %}
     </fieldset>
     {% endfor %}
 
     <fieldset class="settings-section" data-service="general">
       <legend>{{ t("General") }}</legend>
       <div class="settings-grid">
-        {% for key in general_keys %}{% if key in fields %}
-        <label class="field">{{ t(key) }}
-          {% if fields[key][0] == 'bool' %}
-          <select name="{{ key }}" data-kind="bool">
-            <option value="on" {% if settings[key] %}selected{% endif %}>{{ t("On") }}</option>
-            <option value="off" {% if not settings[key] %}selected{% endif %}>{{ t("Off") }}</option>
-          </select>
-          {% elif fields[key][0] == 'select' %}
-          <select name="{{ key }}">
-            {% for choice in fields[key][1] %}
-            <option value="{{ choice }}" {% if settings[key] == choice %}selected{% endif %}>{{ choice }}</option>
-            {% endfor %}
-          </select>
-          {% elif key.endswith('_prompt') %}
-          <textarea name="{{ key }}" rows="2" placeholder="{{ t(key) }}">{{ settings[key] or '' }}</textarea>
-          {% else %}
-          <input name="{{ key }}" type="text" value="{{ settings[key] or '' }}" placeholder="{{ t(key) }}">
-          {% endif %}
-        </label>
-        {% endif %}{% endfor %}
+        {% for key in general_keys %}{{ field_input(key) }}{% endfor %}
+      </div>
+    </fieldset>
+
+    <fieldset class="settings-section" data-service="meetings">
+      <legend>{{ t("Meetings") }}</legend>
+      <div class="settings-grid">
+        {% for key in meeting_keys %}{{ field_input(key) }}{% endfor %}
       </div>
     </fieldset>
 
@@ -89,10 +119,12 @@
 </section>
 
 <section class="card" data-models>
-  <h2>{{ t("Models") }}</h2>
-  <p id="models-stage" class="stage" role="status"></p>
-  <div id="models-loading" class="muted">{{ t("Loading…") }}</div>
-  <div id="models-list"></div>
+  <details class="models-details">
+    <summary>{{ t("Local models") }}</summary>
+    <p id="models-stage" class="stage" role="status"></p>
+    <div id="models-loading" class="muted">{{ t("Loading…") }}</div>
+    <div id="models-list"></div>
+  </details>
 </section>
 <script>
   function applyProviderVisibility() {
@@ -103,10 +135,88 @@
       block.hidden = !show;
     });
   }
+
+  function syncPair(select, inputSel) {
+    const input = select.parentElement.querySelector(inputSel);
+    if (!input) return;
+    const custom = select.value === "__custom__";
+    select.hidden = custom;
+    input.hidden = !custom;
+    select.disabled = custom;
+    input.disabled = !custom;
+    if (!custom) input.value = select.value;
+  }
+
+  async function loadProviderModels(select) {
+    const svc = select.dataset.service || "";
+    const prov = select.dataset.provider || "";
+    const current = select.dataset.current || "";
+    let models = [];
+    try {
+      const resp = await fetch("/api/models/list?provider=" + encodeURIComponent(prov) +
+                               "&svc=" + encodeURIComponent(svc));
+      if (resp.ok) {
+        const data = await resp.json();
+        models = Array.isArray(data.models) ? data.models : [];
+      }
+    } catch (err) { models = []; }
+    const custom = new Option("{{ t("Custom…") }}", "__custom__");
+    const hasModels = models.length > 0;
+    select.textContent = "";
+    if (current && !hasModels) select.appendChild(new Option(current, current, true, true));
+    models.forEach((m) => select.appendChild(new Option(m, m)));
+    select.appendChild(custom);
+    select.value = (hasModels && current && models.indexOf(current) !== -1) ? current : "__custom__";
+    syncPair(select, "input[data-model-input]");
+  }
+
+  function refreshProviderModels() {
+    document.querySelectorAll("select[data-model-select]").forEach((sel) => {
+      const selSvc = document.querySelector(
+        `select.provider-select-el[data-service="${sel.dataset.service}"]`);
+      if (selSvc && selSvc.value === sel.dataset.provider) loadProviderModels(sel);
+    });
+  }
+
+  async function loadMicDevices() {
+    const micSelect = document.querySelector("select[data-mic-select]");
+    const micInput = micSelect
+      ? micSelect.parentElement.querySelector("input[data-mic-input]") : null;
+    if (!micSelect || !micInput) return;
+    const current = micInput.value;
+    let devices = [];
+    try {
+      if (navigator.mediaDevices && navigator.mediaDevices.enumerateDevices) {
+        devices = (await navigator.mediaDevices.enumerateDevices())
+          .filter((d) => d.kind === "audioinput");
+      }
+    } catch (err) { devices = []; }
+    if (!devices.length) {
+      micSelect.hidden = true;
+      micSelect.disabled = true;
+      micInput.hidden = false;
+      micInput.disabled = false;
+      return;
+    }
+    const custom = new Option("{{ t("Custom…") }}", "__custom__");
+    micSelect.textContent = "";
+    devices.forEach((d) => {
+      const label = d.label || d.deviceId || "Microphone";
+      micSelect.appendChild(new Option(label, d.deviceId || label));
+    });
+    micSelect.appendChild(custom);
+    const matches = devices.some(
+      (d) => current && current === (d.deviceId || d.label || "Microphone"));
+    micSelect.value = matches ? current : "__custom__";
+    syncPair(micSelect, "input[data-mic-input]");
+  }
+
   document.querySelectorAll("select.provider-select-el").forEach((sel) => {
-    sel.addEventListener("change", applyProviderVisibility);
+    sel.addEventListener("change", () => { applyProviderVisibility(); refreshProviderModels(); });
   });
   applyProviderVisibility();
+  refreshProviderModels();
+  loadMicDevices();
 
   document.getElementById("settings-form").addEventListener("submit", async (e) => {
     e.preventDefault();

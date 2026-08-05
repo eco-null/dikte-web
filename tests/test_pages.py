@@ -115,6 +115,17 @@ class PagesTest(DikteTest):
         css = self.client.get("/static/app.css").text
         self.assertIn(":focus-visible", css)
 
+    def test_css_has_polish_micro_interactions(self):
+        css = self.client.get("/static/app.css").text
+        for marker in ("@keyframes card-rise", ".card:hover",
+                       ".btn:active", "prefers-reduced-motion"):
+            self.assertIn(marker, css)
+
+    def test_js_has_stage_and_spinner_helpers(self):
+        js = self.client.get("/static/app.js").text
+        for marker in ("setStage", "setSpinner", "has-spinner"):
+            self.assertIn(marker, js)
+
     def test_nav_uses_svg_icons_not_emoji(self):
         body = self.client.get("/dictate").text
         self.assertIn("<svg", body)
@@ -220,6 +231,46 @@ class PagesTest(DikteTest):
         self.assertIn("Sağlayıcı", body)
         self.assertIn("Transkripsiyon", body)
         self.assertIn("OmniRoute adresi", body)
+
+    def test_settings_separates_the_two_languages(self):
+        body = self.client.get("/settings").text
+        self.assertIn("Speech language", body)
+        self.assertIn("Interface language", body)
+        self.assertIn('name="ui_language"', body)
+        self.assertEqual(body.count('name="language"'), 1)
+
+    def test_settings_prompt_fields_are_prefilled(self):
+        body = self.client.get("/settings").text
+        self.assertIn("You clean up dictation transcripts", body)
+        self.assertIn("This request reached you from Dikte", body)
+
+    def test_settings_has_a_meetings_card(self):
+        body = self.client.get("/settings").text
+        self.assertIn('data-service="meetings"', body)
+        self.assertIn('name="meeting_model"', body)
+
+    def test_hosted_model_fields_render_select(self):
+        body = self.client.get("/settings").text
+        self.assertIn('<select name="transcribe_openai_model"', body)
+        self.assertIn('<select name="cleanup_groq_model"', body)
+        self.assertIn('<select name="assistant_openrouter_model"', body)
+        self.assertIn('data-model-select', body)
+
+    def test_omniroute_and_local_model_fields_are_text_inputs(self):
+        body = self.client.get("/settings").text
+        self.assertIn('<input name="transcribe_omniroute_model"', body)
+        self.assertIn('<input name="transcribe_local_model"', body)
+
+    def test_mic_target_is_a_select_with_custom_fallback(self):
+        body = self.client.get("/settings").text
+        self.assertIn('<select name="mic_target"', body)
+        self.assertIn('data-mic-input', body)
+        self.assertEqual(body.count('name="mic_target"'), 2)
+
+    def test_local_models_collapsed_in_a_details_block(self):
+        body = self.client.get("/settings").text
+        self.assertIn("Local models", body)
+        self.assertIn("models-details", body)
 
 if __name__ == "__main__":
     unittest.main()

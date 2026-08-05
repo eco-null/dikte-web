@@ -76,13 +76,10 @@ own network, e.g. a local LLM server.
 
    ```dotenv
    DIKTE_WEB_PASSWORD=your-password
-   OPENAI_API_KEY=sk-...            # optional
-   GROQ_API_KEY=...                 # optional
-   OPENROUTER_API_KEY=...           # optional
-   OMNIROUTE_BASE_URL=http://host.docker.internal:20128/v1   # optional
    ```
 
-   The API keys are only needed for the providers you actually use. Values are
+   Provider API keys are **not** set here — configure them in the web
+   **Settings** page (Transcription / Assistant sections) instead. Values are
    optional; if `DIKTE_WEB_PASSWORD` is left empty the app generates one and
    stores it in the data volume.
 
@@ -158,10 +155,10 @@ the agent works immediately.
 | `assistant_omniroute_model` | the model id (e.g. `gemma-3-4b-it`) |
 | `assistant_omniroute_api_key` | **optional** — sent as a `Bearer` token when set; left empty for keyless local endpoints |
 
-You can also override the default endpoint with the `OMNIROUTE_BASE_URL`
-environment variable. Any base URL that resolves to a private or local address
-is rejected unless it is `host.docker.internal`, `localhost` or `127.0.0.1`
-(SSRF guard).
+You can also set the endpoint in **Settings** — the `assistant_omniroute_base_url`
+field above; there is no `OMNIROUTE_BASE_URL` environment variable anymore. Any
+base URL that resolves to a private or local address is rejected unless it is
+`host.docker.internal`, `localhost` or `127.0.0.1` (SSRF guard).
 
 ### Running without Docker
 
@@ -188,11 +185,11 @@ Requirements on the host:
 | `DIKTE_WEB_PASSWORD` | generated | The single login password. If unset, one is generated and stored in `web_password` (0600 perms, never logged). |
 | `XDG_CONFIG_HOME` | `~/.config` | Base for `dikte/config.json`. |
 | `XDG_DATA_HOME` | `~/.local/share` | Base for `dikte/` data: history, meetings, recordings, `web_password`, `assistant.json`. |
-| `OPENAI_API_KEY` | — | Convenience env; Settings is the source of truth. |
-| `GROQ_API_KEY` | — | Same. |
-| `OPENROUTER_API_KEY` | — | Same. |
-| `OMNIROUTE_BASE_URL` | `http://host.docker.internal:20128/v1` | Default override for the OmniRoute agent endpoint. |
 | `DIKTE_MAX_UPLOAD` | `1073741824` (1 GB) | Max upload size in bytes (413 above it). |
+
+Provider API keys (OpenAI, Groq, OpenRouter, OmniRoute) are **not** read from
+the environment — they are stored in Settings (in `config.json`) and managed
+from the web UI.
 
 ### Data layout
 

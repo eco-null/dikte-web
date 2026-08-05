@@ -8,9 +8,6 @@ services:
       - "8245:8000"
     environment:
       DIKTE_WEB_PASSWORD: "CHANGE_ME"
-      OPENAI_API_KEY: ""
-      GROQ_API_KEY: ""
-      OPENROUTER_API_KEY: ""
       DIKTE_COOKIE_SECURE: "1"
       XDG_CONFIG_HOME: /data/config
       XDG_DATA_HOME: /data/share
