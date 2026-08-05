@@ -101,6 +101,12 @@ box. Uploads are capped at 1 GB (`DIKTE_MAX_UPLOAD`).
 > (`127.0.0.1:8000`). It is not reachable from outside the host until you put
 > something in front of it. Two options below.
 
+> **Image is built automatically:** every push to `master` triggers a GitHub
+> Actions workflow that builds the Docker image and publishes it to
+> `ghcr.io/eco-null/dikte-web` as `latest` (plus a SHA tag). Your compose picks
+> up the fresh image on the next `docker compose up` (pull first: `docker
+> compose pull`).
+
 ### Expose it with a Cloudflare Tunnel (no reverse proxy needed)
 
 If you have a domain on Cloudflare, `cloudflared` terminates TLS at

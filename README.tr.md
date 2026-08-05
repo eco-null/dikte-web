@@ -101,6 +101,11 @@ tasarlanmıştır.
 > (`127.0.0.1:8000`). Önüne bir şey koymadıkça ana makinenin dışından
 > erişilemez. İki seçenek aşağıda.
 
+> **İmaj otomatik derlenir:** `master`'a her push, Docker imajını derleyip
+> `ghcr.io/eco-null/dikte-web`'e `latest` (ve bir SHA etiketiyle) yayınlayan bir
+> GitHub Actions işi başlatır. Compose'un yeni imajı alması için bir sonraki
+> `docker compose up` öncesi `docker compose pull` çalıştırman yeterli.
+
 ### Cloudflare Tunnel ile yayınla (ters proxy gerekmez)
 
 Cloudflare'da bir alan adın varsa `cloudflared` TLS'i Cloudflare kenarında
