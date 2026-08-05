@@ -26,13 +26,41 @@ def _markdown_html(text):
     return nh3.clean(markdown.markdown(text or ""))
 
 
+def _accepted_hosts(request):
+    """The hostnames this request may legitimately claim as its own.
+
+    The direct Host header is the obvious one. Behind a reverse proxy the Host
+    header is rewritten to the internal name, so the headers proxies put in
+    front of it are trusted too: X-Forwarded-Host, and the host= part of the
+    Forwarded header. request.url.netloc is a fallback when nothing was set.
+    """
+    hosts = set()
+    direct = request.headers.get("host")
+    if direct:
+        hosts.add(direct)
+    forwarded_host = request.headers.get("x-forwarded-host")
+    if forwarded_host:
+        for part in forwarded_host.split(","):
+            hosts.add(part.strip())
+    forwarded = request.headers.get("forwarded")
+    if forwarded:
+        for part in forwarded.split(","):
+            for item in part.split(";"):
+                key, _, value = item.strip().partition("=")
+                if key.lower() == "host":
+                    hosts.add(value.strip().strip('"'))
+    if request.url.netloc:
+        hosts.add(request.url.netloc)
+    return hosts
+
+
 def _same_origin(request):
-    host = request.headers.get("host") or request.url.netloc
+    accepted = _accepted_hosts(request)
     for header in ("origin", "referer"):
         value = request.headers.get(header)
         if value:
             try:
-                return urlsplit(value).netloc == host
+                return urlsplit(value).netloc in accepted
             except ValueError:
                 return False
     return True

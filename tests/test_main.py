@@ -81,5 +81,32 @@ class MainTest(DikteTest):
                                 headers={"Origin": "http://testserver"})
         self.assertEqual(resp.status_code, 200)
 
+    def test_mutating_request_behind_a_proxy_matching_forwarded_host(self):
+        self.client.post("/login", data={"password": "test-password"})
+        resp = self.client.post(
+            "/api/history/clear",
+            headers={"Origin": "https://dikte.example.com",
+                     "X-Forwarded-Host": "dikte.example.com"})
+        self.assertEqual(resp.status_code, 200)
+
+    def test_mutating_request_behind_a_proxy_matching_forwarded_header(self):
+        self.client.post("/login", data={"password": "test-password"})
+        resp = self.client.post(
+            "/api/history/clear",
+            headers={"Origin": "https://dikte.example.com",
+                     "Forwarded": "host=dikte.example.com"})
+        self.assertEqual(resp.status_code, 200)
+
+    def test_mutating_request_whose_host_header_was_rewritten_still_works(self):
+        # A proxy that rewrites Host to the internal name must not break
+        # same-origin checks when X-Forwarded-Host carries the public name.
+        self.client.post("/login", data={"password": "test-password"})
+        resp = self.client.post(
+            "/api/history/clear",
+            headers={"Host": "dikte-web:8000",
+                     "Origin": "https://dikte.example.com",
+                     "X-Forwarded-Host": "dikte.example.com"})
+        self.assertEqual(resp.status_code, 200)
+
 if __name__ == "__main__":
     unittest.main()
