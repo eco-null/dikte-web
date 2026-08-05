@@ -120,8 +120,8 @@ class Dictation(RouteTest):
     def test_local_transcription_uses_the_local_server(self):
         conf = cfg.Config()
         web_settings.apply(conf, {"transcribe_provider": "local",
-                                  "local_model": "ggml-small.bin",
                                   "cleanup_enabled": False})
+        conf["transcribe_local_model"] = "ggml-small.bin"
         from app.main import app as fastapi_app
         fastapi_app.state.conf = conf
         clip = make_wav(self.path("clip.wav"), speech(1.0))
@@ -136,6 +136,26 @@ class Dictation(RouteTest):
         self.assertEqual(job["status"], "done", job)
         self.assertIn("yerel metin", job["result"]["text"])
         cfgw.assert_called()
+
+    def test_local_transcription_uses_per_service_keys(self):
+        conf = cfg.Config()
+        web_settings.apply(conf, {"transcribe_provider": "local",
+                                  "cleanup_enabled": False})
+        conf["transcribe_local_model"] = "ggml-small.bin"
+        from app.main import app as fastapi_app
+        fastapi_app.state.conf = conf
+        clip = make_wav(self.path("clip.wav"), speech(1.0))
+        with mock.patch("filetranscribe._to_wav", return_value=str(clip)), \
+                mock.patch("ggml.whisper.configure") as cfgw, \
+                mock.patch("api.serving", return_value="http://127.0.0.1:9999/v1"), \
+                mock.patch("api._request", return_value={"text": "yerel"}):
+            resp = self.client.post(
+                "/api/dictate",
+                files={"audio": ("rec.webm", b"fake-webm", "audio/webm")})
+            job = self.wait_job(resp.json()["job_id"])
+        self.assertEqual(job["status"], "done", job)
+        kwargs = cfgw.call_args.kwargs
+        self.assertEqual(kwargs["model"], "ggml-small.bin")
 
 class Files(RouteTest):
     def test_a_file_transcribes_and_downloads(self):
@@ -281,10 +301,10 @@ class Meetings(RouteTest):
     def test_retry_hydrates_the_local_server(self):
         conf = cfg.Config()
         web_settings.apply(conf, {"transcribe_provider": "local",
-                                  "local_model": "ggml-small.bin",
                                   "openrouter_api_key": "sk-or-test",
                                   "cleanup_enabled": False})
         conf["cleanup_openrouter_key"] = "sk-or-test"
+        conf["transcribe_local_model"] = "ggml-small.bin"
         from app.main import app as fastapi_app
         fastapi_app.state.conf = conf
         base = "20260101-140000"

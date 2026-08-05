@@ -84,13 +84,32 @@ def _pct(done, total):
 def _hydrate_local(conf):
     if conf["transcribe_provider"] == "local":
         ggml.whisper.configure(
-            model=conf["local_model"], threads=conf["local_threads"],
-            gpu=conf["local_gpu"], binary=conf["local_binary"])
-    if conf["cleanup_provider"] == "local-llm":
+            model=conf["transcribe_local_model"],
+            threads=conf["transcribe_local_threads"],
+            gpu=conf["transcribe_local_gpu"],
+            preload=conf["transcribe_local_preload"],
+            binary=conf["local_binary"],
+        )
+    if conf["cleanup_provider"] == "local":
         ggml.llm.configure(
-            model=conf["local_llm_model"], threads=conf["local_llm_threads"],
-            gpu=conf["local_llm_gpu"], binary=conf["local_llm_binary"],
-            context=conf["local_llm_context"])
+            model=conf["cleanup_local_model"],
+            threads=conf["cleanup_local_threads"],
+            gpu=conf["cleanup_local_gpu"],
+            preload=conf["cleanup_local_preload"],
+            context=conf["cleanup_local_context"],
+            reasoning=conf["cleanup_local_reasoning"],
+            binary=conf["local_llm_binary"],
+        )
+    if conf["assistant_provider"] == "local":
+        ggml.llm.configure(
+            model=conf["assistant_local_model"],
+            threads=conf["assistant_local_threads"],
+            gpu=conf["assistant_local_gpu"],
+            preload=conf["assistant_local_preload"],
+            context=conf["assistant_local_context"],
+            reasoning=conf["assistant_local_reasoning"],
+            binary=conf["local_llm_binary"],
+        )
 
 
 @router.get("/api/models")
