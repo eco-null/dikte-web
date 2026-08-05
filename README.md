@@ -136,8 +136,21 @@ the tunnel is the only entry point.
 
 `host.docker.internal` resolves to the Docker host machine (compose maps it
 with `host-gateway`). If you run a local LLM server on the host at port 20128,
-the agent works immediately. You can change the base URL and model in Settings,
-or override the default with the `OMNIROUTE_BASE_URL` environment variable.
+the agent works immediately.
+
+**Settings** (page → *Assistant* section), three fields:
+
+| Field | Purpose |
+|-------|---------|
+| `assistant_provider` | choose **OmniRoute** |
+| `assistant_omniroute_base_url` | the endpoint, e.g. `http://host.docker.internal:20128/v1` |
+| `assistant_omniroute_model` | the model id (e.g. `gemma-3-4b-it`) |
+| `assistant_omniroute_api_key` | **optional** — sent as a `Bearer` token when set; left empty for keyless local endpoints |
+
+You can also override the default endpoint with the `OMNIROUTE_BASE_URL`
+environment variable. Any base URL that resolves to a private or local address
+is rejected unless it is `host.docker.internal`, `localhost` or `127.0.0.1`
+(SSRF guard).
 
 ### Running without Docker
 

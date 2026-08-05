@@ -137,9 +137,20 @@ giriş noktasıdır.
 
 `host.docker.internal`, Docker ana makinesine çözümlenir (compose bunu
 `host-gateway` ile eşler). Ana makinede 20128 portunda yerel bir LLM sunucusu
-çalıştırırsan ajan anında çalışır. Taban URL'yi ve modeli Ayarlar'dan
-değiştirebilir veya `OMNIROUTE_BASE_URL` ortam değişkeniyle varsayılanı
-ezebilirsin.
+çalıştırırsan ajan anında çalışır.
+
+**Ayarlar** (sayfa → *Assistant* bölümü), üç alan:
+
+| Alan | Amaç |
+|------|------|
+| `assistant_provider` | **OmniRoute**'u seç |
+| `assistant_omniroute_base_url` | uç adresi, ör. `http://host.docker.internal:20128/v1` |
+| `assistant_omniroute_model` | model kimliği (ör. `gemma-3-4b-it`) |
+| `assistant_omniroute_api_key` | **opsiyonel** — doluysa `Bearer` token olarak gönderilir; anahtarsız yerel uçlar için boş bırak |
+
+Ayrıca `OMNIROUTE_BASE_URL` ortam değişkeniyle varsayılan uç adresini
+ezebilirsin. Özel veya yerel bir adrese çözümlenen her taban URL, `host.docker.internal`,
+`localhost` ve `127.0.0.1` dışındaysa reddedilir (SSRF koruması).
 
 ### Docker'sız çalıştırma
 
