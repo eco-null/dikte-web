@@ -90,7 +90,9 @@ class ModelsTest(DikteTest):
         self.assertEqual(job["status"], "done", job)
         self.assertTrue(job["result"]["installed"])
         fresh = cfg.Config()
-        self.assertEqual(fresh["local_model"], "ggml-small.bin")
+        self.assertEqual(fresh["transcribe_local_model"], "ggml-small.bin")
+        saved = self.read_config_file()
+        self.assertEqual(saved.get("transcribe_local_model"), "ggml-small.bin")
 
     def test_llm_install_rejects_a_repo_outside_the_allowlist(self):
         with mock.patch("ggml.llm_repos",
@@ -114,7 +116,11 @@ class ModelsTest(DikteTest):
                 job = self._wait(resp.json()["job_id"])
         self.assertEqual(job["status"], "done", job)
         fresh = cfg.Config()
-        self.assertEqual(fresh["local_llm_model"], "x-Q4_K_M.gguf")
+        self.assertEqual(fresh["cleanup_local_model"], "x-Q4_K_M.gguf")
+        self.assertEqual(fresh["assistant_local_model"], "x-Q4_K_M.gguf")
+        saved = self.read_config_file()
+        self.assertEqual(saved.get("cleanup_local_model"), "x-Q4_K_M.gguf")
+        self.assertEqual(saved.get("assistant_local_model"), "x-Q4_K_M.gguf")
 
     def test_program_install_rejects_an_unknown_program(self):
         resp = self.client.post("/api/models/install",

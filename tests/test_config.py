@@ -240,6 +240,14 @@ class TranscribeTarget(DikteTest):
         self.assertEqual(at.api_key, "sk-a")
         self.assertEqual(at.base_url, "http://127.0.0.1:7777/v1")
 
+    def test_target_falls_back_to_env_key(self):
+        from unittest import mock
+        conf = self.config(transcribe_provider="openai",
+                           transcribe_openai_key="",
+                           transcribe_openai_model="m")
+        with mock.patch.dict(os.environ, {"OPENAI_API_KEY": "sk-env"}):
+            self.assertEqual(conf.transcribe_target().api_key, "sk-env")
+
 class CleanupPrompt(DikteTest):
     def test_the_default_follows_the_interface_language(self):
         self.assertEqual(cfg.Config().cleanup_prompt(), cfg.CLEANUP_PROMPT_EN)

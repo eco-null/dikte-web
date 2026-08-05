@@ -667,6 +667,11 @@ class Config:
                               self[f"{service}_local_model"])
         url = self[f"{service}_{name}_url"]
         key = self[f"{service}_{name}_key"]
+        if not key:
+            env_name = {"openai": "OPENAI_API_KEY", "groq": "GROQ_API_KEY",
+                        "openrouter": "OPENROUTER_API_KEY",
+                        "omniroute": "OMNIROUTE_API_KEY"}.get(name)
+            key = os.environ.get(env_name, "") if env_name else ""
         model = self[f"{service}_{name}_model"]
         if name == "openai":
             service_name = t("OpenAI")

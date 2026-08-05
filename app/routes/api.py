@@ -175,6 +175,7 @@ def install_model(request: Request, payload: dict = Body(...)):
                                on_progress=lambda done, total:
                                    emit(f"Downloading… {_pct(done, total)}"))
             if ok:
+                conf["transcribe_local_model"] = name
                 conf["local_model"] = name
                 conf.save()
             return {"path": str(target), "installed": ok}
@@ -187,6 +188,8 @@ def install_model(request: Request, payload: dict = Body(...)):
                                on_progress=lambda done, total:
                                    emit(f"Downloading… {_pct(done, total)}"))
             if ok:
+                conf["cleanup_local_model"] = name
+                conf["assistant_local_model"] = name
                 conf["local_llm_model"] = name
                 conf.save()
             return {"path": str(target), "installed": ok}

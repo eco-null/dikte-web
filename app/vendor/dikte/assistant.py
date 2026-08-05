@@ -9,6 +9,7 @@ import time
 
 import api
 import config as cfg
+import ggml
 from i18n import t
 
 SESSION_FILE = cfg.DATA_DIR / "assistant.json"
@@ -113,18 +114,26 @@ def _ask_http(prompt, conf, name, on_stage):
         on_stage(t("Thinking…"))
     history = read_messages(name, conf["assistant_session_minutes"] * 60)
     messages = history + [{"role": "user", "content": prompt}]
-    key = conf[f"assistant_{name}_key"]
-    base_url = conf[f"assistant_{name}_url"]
-    model = conf[f"assistant_{name}_model"]
-    api._assert_safe_url(base_url)
     service = {"openai": "OpenAI", "groq": "Groq",
                "openrouter": "OpenRouter", "omniroute": "OmniRoute",
                "local": "Local llama.cpp"}.get(name, name)
-    key_required = name not in ("omniroute", "local")
+    if name == "local":
+        base_url = api.serving(ggml.llm)
+        key = ""
+        model = conf["assistant_local_model"]
+        key_required = False
+        reasoning = conf["assistant_local_reasoning"]
+    else:
+        base_url = conf[f"assistant_{name}_url"]
+        key = conf[f"assistant_{name}_key"]
+        model = conf[f"assistant_{name}_model"]
+        key_required = name not in ("omniroute",)
+        reasoning = conf["assistant_reasoning"]
+    api._assert_safe_url(base_url)
     try:
         answer = api.chat(
             messages, key, model=model, system_prompt=conf.assistant_prompt(),
-            reasoning=conf["assistant_reasoning"], base_url=base_url,
+            reasoning=reasoning, base_url=base_url,
             timeout=conf["assistant_timeout"], provider=name,
             service=service, key_required=key_required,
         )

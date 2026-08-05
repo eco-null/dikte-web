@@ -86,6 +86,19 @@ class AssistantProvider(DikteTest):
         self.assertEqual(args[1], "sk-g")
         self.assertEqual(kwargs["provider"], "groq")
 
+    def test_local_provider_uses_llama(self):
+        conf = self.config(assistant_provider="local",
+                           assistant_local_model="gemma.gguf",
+                           assistant_local_reasoning="none")
+        with mock.patch("api.serving", return_value="http://127.0.0.1:9001/v1") as svc, \
+                mock.patch("api.chat", return_value="cevap") as chat:
+            assistant.ask("soru", conf)
+        args, kwargs = chat.call_args
+        self.assertIn("127.0.0.1:9001", kwargs["base_url"])
+        self.assertEqual(kwargs["reasoning"], "none")
+        self.assertEqual(kwargs["model"], "gemma.gguf")
+        self.assertIs(kwargs["key_required"], False)
+
 
 if __name__ == "__main__":
     unittest.main()

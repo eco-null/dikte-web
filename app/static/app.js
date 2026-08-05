@@ -16,6 +16,14 @@ function setSpinner(el, on) {
   el.classList.toggle("has-spinner", on);
 }
 
+function setStage(el, text) {
+  if (!el) return;
+  // keep an existing spinner span as the first child; replace the rest with the text
+  const spinner = el.querySelector(":scope > .spinner");
+  el.textContent = text || "";
+  if (spinner) el.prepend(spinner);
+}
+
 function autoGrow(el) {
   if (!el) return;
   el.style.height = "auto";
@@ -24,7 +32,7 @@ function autoGrow(el) {
 
 function pollJob(jobId, els, everyMs) {
   everyMs = everyMs || 2000;
-  els.stage.textContent = "Waiting…";
+  setStage(els.stage, "Waiting…");
   setSpinner(els.stage, true);
   const tick = async () => {
     let resp, job;
@@ -33,10 +41,10 @@ function pollJob(jobId, els, everyMs) {
       job = await resp.json();
     } catch (err) {
       setSpinner(els.stage, false);
-      els.stage.textContent = "Could not reach the server: " + err;
+      setStage(els.stage, "Could not reach the server: " + err);
       return;
     }
-    els.stage.textContent = job.status === "running" ? (job.stage || "Working…") : job.status;
+    setStage(els.stage, job.status === "running" ? (job.stage || "Working…") : job.status);
     if (job.status === "done") {
       const text = (job.result && job.result.text) || "";
       els.textEl.value = text;
@@ -48,12 +56,12 @@ function pollJob(jobId, els, everyMs) {
         els.resultBox.prepend(w);
       }
       els.resultBox.hidden = false;
-      els.stage.textContent = "";
+      setStage(els.stage, "");
       setSpinner(els.stage, false);
       return;
     }
     if (job.status === "failed") {
-      els.stage.textContent = job.error || "Failed";
+      setStage(els.stage, job.error || "Failed");
       setSpinner(els.stage, false);
       return;
     }
