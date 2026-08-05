@@ -1,6 +1,7 @@
 services:
   dikte-web:
     image: ghcr.io/eco-null/dikte-web:latest
+    pull_policy: always
     icon: "https://github.com/eco-null/dikte-web/blob/main/icon.png?raw=true"
     container_name: dikte-web
     restart: unless-stopped
