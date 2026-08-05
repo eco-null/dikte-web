@@ -3,7 +3,7 @@
 > **[Türkçe okuyun](README.tr.md)** · [Read in Turkish](README.tr.md)
 
 <p align="center">
-  <img src="app/static/logo.svg" alt="Dikte Web" width="128" height="128">
+  <img src="app/static/logo.png" alt="Dikte Web" width="120">
 </p>
 
 **Dikte Web** is a single-user, self-hosted speech-to-text web app. It is a web
