@@ -15,32 +15,39 @@ LOGIN_WINDOW = 15 * 60
 _login_failures = {}
 _login_failures_lock = threading.Lock()
 
-SECTIONS = {
-    "Transcription": ["ui_language", "transcribe_provider",
-                      "transcribe_model",
-                      "groq_transcribe_model", "openrouter_transcribe_model",
-                      "openai_api_key", "groq_api_key", "openrouter_api_key",
-                      "language", "transcribe_prompt", "max_seconds",
-                      "skip_silent", "silence_db", "speech_margin_db",
-                      "min_voiced_seconds", "filter_hallucinations",
-                      "mic_target", "keep_audio", "file_timestamps",
-                      "file_cleanup", "file_cleanup_prompt", "history_limit"],
-    "Cleanup": ["cleanup_enabled", "cleanup_provider", "cleanup_model",
-                "cleanup_reasoning", "cleanup_prompt"],
-    "Local models": ["local_model", "local_threads", "local_gpu",
-                     "local_preload", "local_llm_model", "local_llm_threads",
-                     "local_llm_gpu", "local_llm_context",
-                     "local_llm_preload", "local_llm_reasoning"],
-    "Meetings": ["meeting_cleanup", "meeting_model", "meeting_reasoning",
-                 "meeting_prompt", "meeting_self_name", "meeting_other_name",
-                 "meeting_participants", "meeting_max_seconds",
-                 "meeting_keep_audio"],
-    "Assistant": ["assistant_provider", "assistant_openrouter_model",
-                  "assistant_omniroute_base_url", "assistant_omniroute_model",
-                  "assistant_omniroute_api_key",
-                  "assistant_session_minutes", "assistant_timeout",
-                  "assistant_reasoning", "assistant_prompt"],
-}
+PROVIDER_ORDER = ["openai", "groq", "openrouter", "omniroute", "local"]
+SERVICE_ORDER = ["transcribe", "cleanup", "assistant"]
+
+GENERAL_KEYS = [
+    "ui_language", "language", "transcribe_prompt",
+    "skip_silent", "silence_db", "speech_margin_db",
+    "min_voiced_seconds", "filter_hallucinations",
+    "history_limit", "mic_target", "keep_audio",
+    "max_seconds", "file_timestamps", "file_cleanup",
+    "file_cleanup_prompt", "cleanup_enabled",
+    "cleanup_reasoning", "cleanup_prompt",
+    "meeting_cleanup", "meeting_model", "meeting_reasoning",
+    "meeting_prompt", "meeting_max_seconds",
+    "meeting_keep_audio", "meeting_self_name",
+    "meeting_other_name", "meeting_participants",
+    "assistant_reasoning", "assistant_prompt",
+    "assistant_session_minutes", "assistant_timeout",
+]
+
+
+def _service_spec(service):
+    spec = {
+        "key": service,
+        "title": {
+            "transcribe": "Transcription",
+            "cleanup": "Cleanup",
+            "assistant": "Assistant",
+        }[service],
+        "providers": [],
+    }
+    for p in PROVIDER_ORDER:
+        spec["providers"].append({"name": p})
+    return spec
 
 
 def _env_bool(name, default):
@@ -179,10 +186,12 @@ def history_page(request: Request):
 @router.get("/settings")
 def settings_page(request: Request):
     from app import settings as web_settings
+    services = [_service_spec(s) for s in SERVICE_ORDER]
     return _render(request, "settings.html", {
         "fields": web_settings.WEB_FIELDS,
-        "sections": SECTIONS,
         "settings": web_settings.present(request.app.state.conf),
         "masked": web_settings.MASKED,
         "conf": request.app.state.conf,
+        "services": services,
+        "general_keys": GENERAL_KEYS,
     })

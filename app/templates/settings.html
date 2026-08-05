@@ -7,27 +7,72 @@
     <button class="btn btn-primary" type="submit" form="settings-form">{{ t("Save") }}</button>
   </div>
   <form id="settings-form" class="settings-form">
-    {% for section, keys in sections.items() %}
-    <fieldset class="settings-section">
-      <legend>{{ t(section) }}</legend>
+    {% for service in services %}
+    <fieldset class="settings-section" data-service="{{ service.key }}">
+      <legend>{{ t(service.title) }}</legend>
+      <div class="provider-select">
+        <label class="field">{{ t("Provider") }}
+          <select name="{{ service.key }}_provider" class="provider-select-el"
+                  data-service="{{ service.key }}">
+            {% for p in service.providers %}
+            <option value="{{ p.name }}"
+              {% if settings[service.key ~ '_provider'] == p.name %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+      </div>
+      {% for p in service.providers %}
+      <div class="provider-fields" data-service="{{ service.key }}" data-provider="{{ p.name }}">
+        {% for suffix in ['url', 'key', 'model'] %}
+        {% set fk = service.key ~ '_' ~ p.name ~ '_' ~ suffix %}
+        {% if fk in fields %}
+        <label class="field">{{ t(fk) }}
+          {% if fk in masked %}
+          <input name="{{ fk }}" type="text" value="" placeholder="{{ settings[fk] or t(fk) }}">
+          {% else %}
+          <input name="{{ fk }}" type="text" value="{{ settings[fk] or '' }}" placeholder="{{ t(fk) }}">
+          {% endif %}
+        </label>
+        {% endif %}
+        {% endfor %}
+        {% for lk in (['model','threads','gpu','preload','context','reasoning'] if p.name == 'local' else []) %}
+        {% set fk = service.key ~ '_local_' ~ lk %}
+        {% if fk in fields %}
+        <label class="field">{{ t(fk) }}
+          {% if fields[fk][0] == 'bool' %}
+          <select name="{{ fk }}" data-kind="bool">
+            <option value="on" {% if settings[fk] %}selected{% endif %}>{{ t("On") }}</option>
+            <option value="off" {% if not settings[fk] %}selected{% endif %}>{{ t("Off") }}</option>
+          </select>
+          {% else %}
+          <input name="{{ fk }}" type="text" value="{{ settings[fk] or '' }}" placeholder="{{ t(fk) }}">
+          {% endif %}
+        </label>
+        {% endif %}
+        {% endfor %}
+      </div>
+      {% endfor %}
+    </fieldset>
+    {% endfor %}
+
+    <fieldset class="settings-section" data-service="general">
+      <legend>{{ t("General") }}</legend>
       <div class="settings-grid">
-        {% for key in keys %}{% if key in fields %}
+        {% for key in general_keys %}{% if key in fields %}
         <label class="field">{{ t(key) }}
-          {% if fields[key][0] == "bool" %}
+          {% if fields[key][0] == 'bool' %}
           <select name="{{ key }}" data-kind="bool">
             <option value="on" {% if settings[key] %}selected{% endif %}>{{ t("On") }}</option>
             <option value="off" {% if not settings[key] %}selected{% endif %}>{{ t("Off") }}</option>
           </select>
-          {% elif fields[key][0] == "select" %}
+          {% elif fields[key][0] == 'select' %}
           <select name="{{ key }}">
             {% for choice in fields[key][1] %}
             <option value="{{ choice }}" {% if settings[key] == choice %}selected{% endif %}>{{ choice }}</option>
             {% endfor %}
           </select>
-          {% elif key in masked %}
-          <input name="{{ key }}" type="text" value="" placeholder="{{ settings[key] or t(key) }}">
-          {% elif key.endswith("_prompt") %}
-          <textarea name="{{ key }}" rows="3" placeholder="{{ t(key) }}">{{ settings[key] or '' }}</textarea>
+          {% elif key.endswith('_prompt') %}
+          <textarea name="{{ key }}" rows="2" placeholder="{{ t(key) }}">{{ settings[key] or '' }}</textarea>
           {% else %}
           <input name="{{ key }}" type="text" value="{{ settings[key] or '' }}" placeholder="{{ t(key) }}">
           {% endif %}
@@ -35,7 +80,7 @@
         {% endif %}{% endfor %}
       </div>
     </fieldset>
-    {% endfor %}
+
     <div class="save-bar">
       <button class="btn btn-primary" type="submit">{{ t("Save") }}</button>
       <p id="msg" class="stage save-msg" role="status"></p>
@@ -50,6 +95,19 @@
   <div id="models-list"></div>
 </section>
 <script>
+  function applyProviderVisibility() {
+    document.querySelectorAll("[data-service][data-provider]").forEach((block) => {
+      const sel = document.querySelector(
+        `select.provider-select-el[data-service="${block.dataset.service}"]`);
+      const show = sel && sel.value === block.dataset.provider;
+      block.hidden = !show;
+    });
+  }
+  document.querySelectorAll("select.provider-select-el").forEach((sel) => {
+    sel.addEventListener("change", applyProviderVisibility);
+  });
+  applyProviderVisibility();
+
   document.getElementById("settings-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = e.submitter || document.querySelector('#settings-form button[type="submit"]');

@@ -193,6 +193,21 @@ class PagesTest(DikteTest):
         body = self.client.get("/settings").text
         self.assertIn('value="omniroute"', body)
 
+    def test_settings_service_cards_present(self):
+        body = self.client.get("/settings").text
+        for svc in ("transcribe", "cleanup", "assistant"):
+            self.assertIn(f'name="{svc}_provider"', body)
+        self.assertIn("data-service", body)
+        self.assertIn("General", body)
+
+    def test_settings_provider_fields_marked_for_show_hide(self):
+        body = self.client.get("/settings").text
+        self.assertIn('data-provider="openai"', body)
+        self.assertIn('data-provider="omniroute"', body)
+        self.assertIn('data-provider="local"', body)
+        self.assertIn('name="transcribe_omniroute_url"', body)
+        self.assertIn('name="assistant_openai_key"', body)
+
     def test_result_textareas_auto_grow_in_css(self):
         css = self.client.get("/static/app.css").text
         self.assertIn("min-height: 120px", css)

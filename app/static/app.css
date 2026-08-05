@@ -154,6 +154,9 @@ main { max-width: 900px; margin: 0 auto; padding: var(--space-5) var(--space-4) 
 .settings-grid .field { margin-bottom: 0; }
 .settings-grid .field > label { font-weight: 500; font-size: var(--text-sm); }
 
+.provider-select { margin-bottom: var(--space-4); }
+.provider-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: var(--space-3); }
+
 .auth { max-width: 380px; margin: var(--space-8) auto; }
 .auth-card { padding: var(--space-6); }
 .auth-brand { display: flex; align-items: center; justify-content: center; gap: var(--space-3); margin-bottom: var(--space-3); }
