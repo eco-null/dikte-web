@@ -1,6 +1,19 @@
+function ensureSpinner(el) {
+  if (!el) return null;
+  let s = el.querySelector(".spinner");
+  if (!s) {
+    s = document.createElement("span");
+    s.className = "spinner";
+    s.setAttribute("aria-hidden", "true");
+    el.prepend(s);
+  }
+  return s;
+}
 function setSpinner(el, on) {
   if (!el) return;
-  if (on) { el.classList.add("spinner"); } else { el.classList.remove("spinner"); }
+  const s = ensureSpinner(el);
+  if (s) s.style.display = on ? "inline-block" : "none";
+  el.classList.toggle("has-spinner", on);
 }
 
 function autoGrow(el) {

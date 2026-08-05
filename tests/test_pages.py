@@ -213,5 +213,13 @@ class PagesTest(DikteTest):
         self.assertIn("min-height: 120px", css)
         self.assertIn("overflow: hidden", css)
 
+    def test_settings_has_turkish_labels_when_tr(self):
+        i18n.set_language("tr")
+        self.addCleanup(i18n.set_language, "en")
+        body = self.client.get("/settings").text
+        self.assertIn("Sağlayıcı", body)
+        self.assertIn("Transkripsiyon", body)
+        self.assertIn("OmniRoute adresi", body)
+
 if __name__ == "__main__":
     unittest.main()
