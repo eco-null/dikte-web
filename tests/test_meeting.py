@@ -207,7 +207,7 @@ class Pipeline(DikteTest):
 
     def setUp(self):
         super().setUp()
-        self.conf = self.config(openrouter_api_key="sk-or-test")
+        self.conf = self.config(cleanup_openrouter_key="sk-or-test")
         self.base = "20260801-100000"
         self.doc, self.wav = cfg.meeting_paths(self.base)
         self.wav.parent.mkdir(parents=True, exist_ok=True)

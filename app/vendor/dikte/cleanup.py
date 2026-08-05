@@ -1,14 +1,15 @@
 """Transkripti kimin temizlediği. (webapp)
 
-İki sağlayıcı: OpenRouter ve yerel llama.cpp (local-llm). Yerel yol, masaüstünün
-llama.cpp kurulumunu webapp'e taşır; diğer masaüstü yolları taşınmaz.
+Beş sağlayıcı: openai, groq, openrouter, omniroute ve yerel llama.cpp (local).
+Yerel yol, masaüstünün llama.cpp kurulumunu webapp'e taşır; diğer masaüstü
+yolları taşınmaz.
 """
 
 import api
 import ggml
 from i18n import t
 
-PROVIDERS = ("openrouter", "local-llm")
+PROVIDERS = ("openai", "groq", "openrouter", "omniroute", "local")
 
 
 class CleanupError(api.ApiError):
@@ -21,20 +22,28 @@ def provider(conf):
 
 
 def model(conf):
-    return conf["cleanup_model"]
+    return conf[f"cleanup_{provider(conf)}_model"]
 
 
 def run(text, conf, system_prompt, timeout=180, aborter=None):
-    if provider(conf) == "local-llm":
+    name = provider(conf)
+    if name == "local":
+        target = conf.cleanup_target()
         return api.cleanup(
-            text, "", conf["local_llm_model"], system_prompt,
-            reasoning=conf["local_llm_reasoning"],
+            text, api_key="", model=target.model, system_prompt=system_prompt,
+            reasoning=conf["cleanup_local_reasoning"],
             base_url=api.serving(ggml.llm), timeout=timeout,
             provider="local-llm", service=t("Local llama.cpp"),
             aborter=aborter,
         )
+    target = conf.cleanup_target()
+    key_required = name != "omniroute"
+    if key_required and not target.api_key:
+        raise api.ApiError(t("{service} API key is empty. Add it in Settings.",
+                             service=target.service))
     return api.cleanup(
-        text, conf.openrouter_key(), conf["cleanup_model"], system_prompt,
-        reasoning=conf["cleanup_reasoning"],
-        base_url=conf["openrouter_base_url"], timeout=timeout, aborter=aborter,
+        text, api_key=target.api_key, model=target.model,
+        system_prompt=system_prompt, reasoning=conf["cleanup_reasoning"],
+        base_url=target.base_url, timeout=timeout,
+        provider=name, service=target.service, aborter=aborter,
     )

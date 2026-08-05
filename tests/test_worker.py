@@ -12,6 +12,7 @@ class Pipeline(DikteTest):
     def conf(self, **over):
         values = {"transcribe_provider": "openai",
                   "transcribe_openai_key": "sk-test",
+                  "cleanup_openrouter_key": "sk-clean",
                   "skip_silent": True, "cleanup_enabled": False}
         values.update(over)
         return self.config(**values)

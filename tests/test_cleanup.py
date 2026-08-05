@@ -23,13 +23,15 @@ class Provider(DikteTest):
                     cleanup.provider(self.config(cleanup_provider=name)), name)
 
     def test_the_model_named_in_the_history_is_the_one_that_did_it(self):
-        self.assertEqual(cleanup.model(self.config(cleanup_model="some/model")),
-                         "some/model")
+        self.assertEqual(
+            cleanup.model(self.config(cleanup_openrouter_model="some/model")),
+            "some/model")
 
 class OpenRouter(DikteTest):
     def test_it_is_still_one_request_with_the_settings_as_they_were(self):
-        conf = self.config(openrouter_api_key="sk-or-test",
-                           cleanup_model="some/model", cleanup_reasoning="low")
+        conf = self.config(cleanup_openrouter_key="sk-or-test",
+                           cleanup_openrouter_model="some/model",
+                           cleanup_reasoning="low")
         with fake_urlopen(chat_reply("Done.")) as calls:
             self.assertEqual(cleanup.run("uh, done", conf, "the rules"), "Done.")
         self.assertEqual(len(calls), 1)
@@ -43,20 +45,20 @@ class OpenRouter(DikteTest):
         self.assertEqual(payload["reasoning"], {"effort": "low", "exclude": True})
 
     def test_the_request_goes_to_the_openrouter_address(self):
-        conf = self.config(openrouter_api_key="sk-or-test")
+        conf = self.config(cleanup_openrouter_key="sk-or-test")
         with fake_urlopen(chat_reply("Done.")) as calls:
             cleanup.run("uh, done", conf, "the rules")
         self.assertEqual(calls[0].full_url,
                          "https://openrouter.ai/api/v1/chat/completions")
 
     def test_no_thinking_setting_means_no_reasoning_block(self):
-        conf = self.config(openrouter_api_key="sk-or-test")
+        conf = self.config(cleanup_openrouter_key="sk-or-test")
         with fake_urlopen(chat_reply("Done.")) as calls:
             cleanup.run("uh, done", conf, "the rules")
         self.assertNotIn("reasoning", sent_json(calls[0]))
 
     def test_an_answer_of_nothing_is_a_failure(self):
-        conf = self.config(openrouter_api_key="sk-or-test")
+        conf = self.config(cleanup_openrouter_key="sk-or-test")
         with fake_urlopen(chat_reply("")):
             with self.assertRaises(api.ApiError) as caught:
                 cleanup.run("uh, done", conf, "the rules")
@@ -66,14 +68,14 @@ class OpenRouter(DikteTest):
         self.assertTrue(issubclass(cleanup.CleanupError, api.ApiError))
 
 class LocalLLM(DikteTest):
-    def test_provider_accepts_local_llm(self):
-        conf = self.config(cleanup_provider="local-llm")
-        self.assertEqual(cleanup.provider(conf), "local-llm")
+    def test_provider_accepts_local(self):
+        conf = self.config(cleanup_provider="local")
+        self.assertEqual(cleanup.provider(conf), "local")
 
     def test_run_uses_the_local_server_when_configured(self):
         from unittest import mock
-        conf = self.config(cleanup_provider="local-llm",
-                           local_llm_model="gemma-3-4b-it.gguf")
+        conf = self.config(cleanup_provider="local",
+                           cleanup_local_model="gemma-3-4b-it.gguf")
         with mock.patch("api.serving", return_value="http://127.0.0.1:7777/v1") as svc, \
                 mock.patch("api.cleanup", return_value="temiz metin") as cl:
             out = cleanup.run("raw metin", conf, "sysprompt")
@@ -81,6 +83,49 @@ class LocalLLM(DikteTest):
         _, kwargs = cl.call_args
         self.assertEqual(kwargs["provider"], "local-llm")
         self.assertIn("127.0.0.1:7777", kwargs["base_url"])
+
+class PerProvider(DikteTest):
+    def test_provider_accepts_all(self):
+        for p in ("openai", "groq", "openrouter", "omniroute", "local"):
+            conf = self.config(cleanup_provider=p)
+            self.assertEqual(cleanup.provider(conf), p)
+
+    def test_run_openai_uses_cleanup_target(self):
+        conf = self.config(cleanup_provider="openai",
+                           cleanup_openai_url="https://o.example/v1",
+                           cleanup_openai_key="sk-o",
+                           cleanup_openai_model="m-o")
+        with mock.patch("api.cleanup", return_value="temiz") as cl:
+            out = cleanup.run("metin", conf, "sys")
+        self.assertEqual(out, "temiz")
+        args, kwargs = cl.call_args
+        self.assertEqual(kwargs["provider"], "openai")
+        self.assertEqual(kwargs["base_url"], "https://o.example/v1")
+        self.assertEqual(kwargs["model"], "m-o")
+        self.assertEqual(kwargs["api_key"], "sk-o")
+
+    def test_run_omniroute_keyless(self):
+        conf = self.config(cleanup_provider="omniroute",
+                           cleanup_omniroute_url="http://127.0.0.1:7777/v1",
+                           cleanup_omniroute_key="")
+        with mock.patch("api.cleanup", return_value="x") as cl:
+            cleanup.run("metin", conf, "sys")
+        args, kwargs = cl.call_args
+        self.assertEqual(kwargs["provider"], "omniroute")
+        self.assertEqual(kwargs["api_key"], "")
+        self.assertIn("127.0.0.1:7777", kwargs["base_url"])
+
+    def test_run_local_uses_llama(self):
+        conf = self.config(cleanup_provider="local",
+                           cleanup_local_model="gemma.gguf",
+                           cleanup_local_reasoning="none")
+        with mock.patch("api.serving", return_value="http://127.0.0.1:9001/v1") as svc, \
+                mock.patch("api.cleanup", return_value="x") as cl:
+            cleanup.run("metin", conf, "sys")
+        args, kwargs = cl.call_args
+        self.assertEqual(kwargs["provider"], "local-llm")
+        self.assertEqual(kwargs["model"], "gemma.gguf")
+        self.assertEqual(kwargs["reasoning"], "none")
 
 if __name__ == "__main__":
     unittest.main()

@@ -23,6 +23,7 @@ class RouteTest(DikteTest):
         self.addCleanup(self.client.close)
         fresh = cfg.Config()
         fresh["transcribe_openai_key"] = "sk-test"
+        fresh["cleanup_openrouter_key"] = "sk-or-test"
         web_settings.apply(fresh, {"transcribe_provider": "openai",
                                    "openrouter_api_key": "sk-or-test",
                                    "cleanup_enabled": False})
@@ -282,6 +283,7 @@ class Meetings(RouteTest):
                                   "local_model": "ggml-small.bin",
                                   "openrouter_api_key": "sk-or-test",
                                   "cleanup_enabled": False})
+        conf["cleanup_openrouter_key"] = "sk-or-test"
         from app.main import app as fastapi_app
         fastapi_app.state.conf = conf
         base = "20260101-140000"

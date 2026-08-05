@@ -246,7 +246,7 @@ class Transcriber(DikteTest):
     def setUp(self):
         super().setUp()
         self.source = make_wav(self.path("input.wav"), tone(1.0))
-        self.conf = self.config(openrouter_api_key="sk-or-test")
+        self.conf = self.config(cleanup_openrouter_key="sk-or-test")
 
     def run_chain(self, timestamps=False, cleanup=False, transcript="raw text",
                   segments=None, cleaned="clean text", fail=None):
@@ -278,7 +278,7 @@ class Transcriber(DikteTest):
 
     def test_cleanup_is_told_it_is_writing_subtitles(self):
         _, cleanup_call = self.run_chain(cleanup=True)
-        prompt = cleanup_call.call_args.args[3]
+        prompt = cleanup_call.call_args.kwargs["system_prompt"]
         self.assertEqual(prompt, self.conf.cleanup_prompt(subtitles=True))
 
     def test_timestamps_come_back_as_segments_and_as_stamped_lines(self):

@@ -477,7 +477,7 @@ def local_ceiling(text):
 def cleanup(text, api_key, model, system_prompt, reasoning="",
             base_url=OPENROUTER_URL, timeout=180, provider="openrouter",
             service="OpenRouter", aborter=None):
-    if not api_key and provider != "local-llm":
+    if not api_key and provider not in ("local-llm", "omniroute"):
         raise ApiError(t("{service} API key is empty. Add it in Settings.",
                          service=service))
     payload = {
