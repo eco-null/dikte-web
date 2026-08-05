@@ -471,6 +471,92 @@ DEFAULTS = {
     "assistant_paste": True,        # paste the answer, not just copy it
     "assistant_session_minutes": 30,  # 0 -> every command starts fresh
     "assistant_timeout": 240,
+
+    # --- transcribe, per provider ----------------------------------------
+    "transcribe_openai_url": "https://api.openai.com/v1",
+    "transcribe_openai_key": "",
+    "transcribe_openai_model": "gpt-4o-transcribe",
+    "transcribe_groq_url": "https://api.groq.com/openai/v1",
+    "transcribe_groq_key": "",
+    "transcribe_groq_model": "whisper-large-v3-turbo",
+    "transcribe_openrouter_url": "https://openrouter.ai/api/v1",
+    "transcribe_openrouter_key": "",
+    "transcribe_openrouter_model": "openai/gpt-4o-transcribe",
+    "transcribe_omniroute_url": "http://host.docker.internal:20128/v1",
+    "transcribe_omniroute_key": "",
+    "transcribe_omniroute_model": "",
+    "transcribe_local_model": ggml.SUGGESTED_WHISPER,
+    "transcribe_local_threads": 0,
+    "transcribe_local_gpu": True,
+    "transcribe_local_preload": True,
+
+    # --- cleanup, per provider -------------------------------------------
+    "cleanup_openai_url": "https://api.openai.com/v1",
+    "cleanup_openai_key": "",
+    "cleanup_openai_model": "gpt-4o-mini",
+    "cleanup_groq_url": "https://api.groq.com/openai/v1",
+    "cleanup_groq_key": "",
+    "cleanup_groq_model": "llama-3.3-70b-versatile",
+    "cleanup_openrouter_url": "https://openrouter.ai/api/v1",
+    "cleanup_openrouter_key": "",
+    "cleanup_openrouter_model": "google/gemini-3.5-flash-lite",
+    "cleanup_omniroute_url": "http://host.docker.internal:20128/v1",
+    "cleanup_omniroute_key": "",
+    "cleanup_omniroute_model": "",
+    "cleanup_local_model": "",
+    "cleanup_local_threads": 0,
+    "cleanup_local_gpu": True,
+    "cleanup_local_preload": False,
+    "cleanup_local_context": 8192,
+    "cleanup_local_reasoning": "none",
+
+    # --- assistant, per provider -----------------------------------------
+    "assistant_openai_url": "https://api.openai.com/v1",
+    "assistant_openai_key": "",
+    "assistant_openai_model": "gpt-4o-mini",
+    "assistant_groq_url": "https://api.groq.com/openai/v1",
+    "assistant_groq_key": "",
+    "assistant_groq_model": "llama-3.3-70b-versatile",
+    "assistant_openrouter_url": "https://openrouter.ai/api/v1",
+    "assistant_openrouter_key": "",
+    "assistant_openrouter_model": "google/gemini-3.5-flash",
+    "assistant_omniroute_url": "http://host.docker.internal:20128/v1",
+    "assistant_omniroute_key": "",
+    "assistant_omniroute_model": "",
+    "assistant_local_model": "",
+    "assistant_local_threads": 0,
+    "assistant_local_gpu": True,
+    "assistant_local_preload": False,
+    "assistant_local_context": 8192,
+    "assistant_local_reasoning": "none",
+}
+
+# Old flat keys copied into the new per-service scheme. Migration fills the new
+# key only when it is still at its default, so a value the user set in the new
+# scheme is never overwritten.
+LEGACY_KEY_MAP = {
+    "transcribe_openai_key": "openai_api_key",
+    "transcribe_openai_url": "openai_base_url",
+    "transcribe_openai_model": "transcribe_model",
+    "transcribe_groq_key": "groq_api_key",
+    "transcribe_groq_url": "groq_base_url",
+    "transcribe_openrouter_key": "openrouter_api_key",
+    "transcribe_openrouter_url": "openrouter_base_url",
+    "transcribe_omniroute_key": "assistant_omniroute_api_key",
+    "transcribe_local_model": "local_model",
+    "cleanup_openrouter_key": "openrouter_api_key",
+    "cleanup_openrouter_url": "openrouter_base_url",
+    "cleanup_openrouter_model": "cleanup_model",
+    "cleanup_local_model": "local_llm_model",
+    "cleanup_local_reasoning": "local_llm_reasoning",
+    "assistant_openrouter_key": "openrouter_api_key",
+    "assistant_openrouter_url": "openrouter_base_url",
+    "assistant_openrouter_model": "assistant_openrouter_model",
+    "assistant_omniroute_url": "assistant_omniroute_base_url",
+    "assistant_omniroute_key": "assistant_omniroute_api_key",
+    "assistant_omniroute_model": "assistant_omniroute_model",
+    "assistant_local_model": "local_llm_model",
+    "assistant_local_reasoning": "local_llm_reasoning",
 }
 
 # Saving the settings window used to write the whole default prompt into the
@@ -524,6 +610,11 @@ class Config:
             pass
         except (json.JSONDecodeError, OSError) as exc:
             print(f"dikte: could not read settings ({exc}), using defaults")
+        for new, legacy in LEGACY_KEY_MAP.items():
+            # Copy the old value over only when the new key is still its default,
+            # i.e. the user never set it under the new scheme.
+            if self.data.get(new) == DEFAULTS.get(new) and self.data.get(legacy):
+                self.data[new] = self.data[legacy]
         self.data["overlay_corner"] = _CORNER_MIGRATION.get(
             self.data["overlay_corner"], self.data["overlay_corner"]
         )

@@ -66,6 +66,42 @@ class Loading(DikteTest):
         self.assertIsNone(cfg.Config()["no_such_setting"])
         self.assertEqual(cfg.Config().get("no_such_setting", "fallback"), "fallback")
 
+    def test_per_service_keys_exist_with_defaults(self):
+        conf = self.config()
+        self.assertTrue(conf["transcribe_openai_url"])
+        self.assertTrue(conf["transcribe_openai_model"])
+        self.assertTrue(conf["cleanup_openrouter_url"])
+        self.assertTrue(conf["assistant_openrouter_model"])
+        self.assertFalse(conf["transcribe_omniroute_api_key"])
+
+    def test_migration_copies_legacy_keys_when_new_empty(self):
+        payload = {
+            "openai_api_key": "sk-legacy",
+            "openai_base_url": "https://legacy.example/v1",
+            "transcribe_model": "legacy-whisper",
+            "cleanup_model": "legacy-clean",
+            "assistant_openrouter_model": "legacy-agent",
+            "local_model": "ggml-small.bin",
+            "local_llm_model": "gemma.gguf",
+        }
+        self.write_config(payload)
+        conf = cfg.Config()
+        self.assertEqual(conf["transcribe_openai_key"], "sk-legacy")
+        self.assertEqual(conf["transcribe_openai_url"], "https://legacy.example/v1")
+        self.assertEqual(conf["transcribe_openai_model"], "legacy-whisper")
+        self.assertEqual(conf["cleanup_openrouter_model"], "legacy-clean")
+        self.assertEqual(conf["assistant_openrouter_model"], "legacy-agent")
+        self.assertEqual(conf["transcribe_local_model"], "ggml-small.bin")
+        self.assertEqual(conf["cleanup_local_model"], "gemma.gguf")
+
+    def test_migration_does_not_overwrite_new_keys(self):
+        self.write_config({
+            "transcribe_openai_key": "sk-new",
+            "openai_api_key": "sk-legacy",
+        })
+        conf = cfg.Config()
+        self.assertEqual(conf["transcribe_openai_key"], "sk-new")
+
 class Saving(DikteTest):
     def test_a_saved_setting_comes_back(self):
         conf = cfg.Config()
