@@ -545,7 +545,9 @@ TR = {
     "{hours} h {minutes} min": "{hours} sa {minutes} dk",
 
     # --- settings: meeting --------------------------------------------------
-    "Minutes": "Tutanaklar",
+    "Meetings": "Toplantılar",
+    "Minutes": "Toplantılar",
+    "Meeting minutes": "Toplantılar",
     "A meeting is recorded from two devices at once: your microphone and "
     "whatever comes out of your speakers. Nothing has to guess who was "
     "speaking, because the two never share a channel.":
@@ -619,6 +621,12 @@ TR = {
     "Log in": "Giriş yap",
     "Password": "Şifre",
     "Wrong password.": "Hatalı şifre.",
+    "Sign in to continue": "Devam etmek için giriş yap",
+    "Settings": "Ayarlar",
+    "Models": "Modeller",
+    "Loading…": "Yükleniyor…",
+    "Drop an audio or video file, or click to browse":
+        "Bir ses veya video dosyasını buraya bırak ya da gözatmak için tıkla",
     "Files": "Dosyalar",
     "Record": "Kaydet",
     "Cancel": "İptal",

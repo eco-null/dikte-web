@@ -32,7 +32,7 @@ class PagesTest(DikteTest):
 
     def test_nav_has_all_sections(self):
         body = self.client.get("/dictate").text
-        for label in ("Dictation", "Files", "Minutes", "Agent",
+        for label in ("Dictation", "Files", "Meetings", "Agent",
                       "History", "Settings", "Log out"):
             self.assertIn(label, body)
 
