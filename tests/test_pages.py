@@ -178,7 +178,7 @@ class PagesTest(DikteTest):
         body = self.client.get("/settings").text
         self.assertIn('name="transcribe_provider"', body)
         self.assertIn('name="cleanup_provider"', body)
-        self.assertIn('name="local_model"', body)
+        self.assertIn('value="local"', body)
         self.assertIn('name="ui_language"', body)
         self.assertIn('name="file_timestamps"', body)
         self.assertIn("data-models", body)
@@ -189,11 +189,9 @@ class PagesTest(DikteTest):
         self.assertIn("save-bar", body)
         self.assertIn('id="msg"', body)
 
-    def test_settings_page_has_omniroute_credentials(self):
+    def test_settings_page_offers_omniroute_provider(self):
         body = self.client.get("/settings").text
-        self.assertIn('name="assistant_omniroute_base_url"', body)
-        self.assertIn('name="assistant_omniroute_model"', body)
-        self.assertIn('name="assistant_omniroute_api_key"', body)
+        self.assertIn('value="omniroute"', body)
 
     def test_result_textareas_auto_grow_in_css(self):
         css = self.client.get("/static/app.css").text

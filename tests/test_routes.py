@@ -25,8 +25,8 @@ class RouteTest(DikteTest):
         fresh["transcribe_openai_key"] = "sk-test"
         fresh["cleanup_openrouter_key"] = "sk-or-test"
         fresh["assistant_openrouter_key"] = "sk-or-test"
+        fresh["openrouter_api_key"] = "sk-or-test"
         web_settings.apply(fresh, {"transcribe_provider": "openai",
-                                   "openrouter_api_key": "sk-or-test",
                                    "cleanup_enabled": False})
         fastapi_app.state.conf = fresh
         resp = self.client.post("/login", data={"password": "test-password"},
@@ -301,9 +301,9 @@ class Meetings(RouteTest):
     def test_retry_hydrates_the_local_server(self):
         conf = cfg.Config()
         web_settings.apply(conf, {"transcribe_provider": "local",
-                                  "openrouter_api_key": "sk-or-test",
                                   "cleanup_enabled": False})
         conf["cleanup_openrouter_key"] = "sk-or-test"
+        conf["openrouter_api_key"] = "sk-or-test"
         conf["transcribe_local_model"] = "ggml-small.bin"
         from app.main import app as fastapi_app
         fastapi_app.state.conf = conf
@@ -361,9 +361,9 @@ class HistorySettings(RouteTest):
         resp = self.client.get("/api/settings")
         self.assertIn("settings", resp.json())
         post = self.client.post("/api/settings",
-                                json={"settings": {"cleanup_model": "some/model"}})
+                                json={"settings": {"cleanup_prompt": "some/prompt"}})
         self.assertEqual(post.status_code, 200)
-        self.assertEqual(cfg.Config()["cleanup_model"], "some/model")
+        self.assertEqual(cfg.Config()["cleanup_prompt"], "some/prompt")
 
 if __name__ == "__main__":
     unittest.main()

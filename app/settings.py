@@ -1,43 +1,44 @@
 import config as cfg
 
+_SERVICES = ("transcribe", "cleanup", "assistant")
+_PROVIDERS = ("openai", "groq", "openrouter", "omniroute")
+
+
+def _provider_fields(service, providers, local_extra):
+    fields = {}
+    fields[f"{service}_provider"] = ("select", list(providers) + ["local"])
+    for p in providers:
+        fields[f"{service}_{p}_url"] = ("str", [])
+        fields[f"{service}_{p}_key"] = ("str", [])
+        fields[f"{service}_{p}_model"] = ("str", [])
+    fields[f"{service}_local_model"] = ("str", [])
+    fields[f"{service}_local_threads"] = ("int", [])
+    fields[f"{service}_local_gpu"] = ("bool", [])
+    fields[f"{service}_local_preload"] = ("bool", [])
+    for k in local_extra:
+        fields[f"{service}_local_{k}"] = ("str", [])
+    return fields
+
+
 WEB_FIELDS = {
     "ui_language": ("select", ["auto", "tr", "en"]),
-    "transcribe_provider": ("select", ["openai", "groq", "openrouter", "local"]),
-    "transcribe_model": ("str", []),
-    "groq_transcribe_model": ("str", []),
-    "openrouter_transcribe_model": ("str", []),
-    "openai_api_key": ("str", []),
-    "groq_api_key": ("str", []),
-    "openrouter_api_key": ("str", []),
     "language": ("select", ["auto", "tr", "en"]),
     "transcribe_prompt": ("str", []),
-    "cleanup_enabled": ("bool", []),
-    "cleanup_provider": ("select", ["openrouter", "local-llm"]),
-    "cleanup_model": ("str", []),
-    "cleanup_reasoning": ("str", []),
-    "cleanup_prompt": ("str", []),
-    "local_model": ("str", []),
-    "local_threads": ("int", []),
-    "local_gpu": ("bool", []),
-    "local_preload": ("bool", []),
-    "local_llm_model": ("str", []),
-    "local_llm_threads": ("int", []),
-    "local_llm_gpu": ("bool", []),
-    "local_llm_context": ("int", []),
-    "local_llm_preload": ("bool", []),
-    "local_llm_reasoning": ("str", []),
-    "mic_target": ("str", []),
-    "keep_audio": ("bool", []),
-    "max_seconds": ("int", []),
     "skip_silent": ("bool", []),
     "silence_db": ("float", []),
     "speech_margin_db": ("float", []),
     "min_voiced_seconds": ("float", []),
     "filter_hallucinations": ("bool", []),
     "history_limit": ("int", []),
+    "mic_target": ("str", []),
+    "keep_audio": ("bool", []),
+    "max_seconds": ("int", []),
     "file_timestamps": ("bool", []),
     "file_cleanup": ("bool", []),
     "file_cleanup_prompt": ("str", []),
+    "cleanup_enabled": ("bool", []),
+    "cleanup_reasoning": ("str", []),
+    "cleanup_prompt": ("str", []),
     "meeting_cleanup": ("bool", []),
     "meeting_model": ("str", []),
     "meeting_reasoning": ("str", []),
@@ -47,19 +48,16 @@ WEB_FIELDS = {
     "meeting_self_name": ("str", []),
     "meeting_other_name": ("str", []),
     "meeting_participants": ("str", []),
-    "assistant_provider": ("select", ["openrouter", "omniroute"]),
-    "assistant_openrouter_model": ("str", []),
-    "assistant_omniroute_base_url": ("str", []),
-    "assistant_omniroute_model": ("str", []),
-    "assistant_omniroute_api_key": ("str", []),
     "assistant_reasoning": ("str", []),
     "assistant_prompt": ("str", []),
     "assistant_session_minutes": ("int", []),
     "assistant_timeout": ("int", []),
+    **_provider_fields("transcribe", _PROVIDERS, []),
+    **_provider_fields("cleanup", _PROVIDERS, ["context", "reasoning"]),
+    **_provider_fields("assistant", _PROVIDERS, ["context", "reasoning"]),
 }
 
-MASKED = {"openai_api_key", "groq_api_key", "openrouter_api_key",
-          "assistant_omniroute_api_key"}
+MASKED = {key for key in WEB_FIELDS if key.endswith("_key")}
 
 
 def _coerce(key, raw):
