@@ -82,8 +82,9 @@ tasarlanmıştır.
    OMNIROUTE_BASE_URL=http://host.docker.internal:20128/v1   # opsiyonel
    ```
 
-   `DIKTE_WEB_PASSWORD` zorunludur (compose onsuz başlamayı reddeder). API
-   anahtarları yalnızca gerçekte kullandığın sağlayıcılar için gerekir.
+   API anahtarları yalnızca gerçekte kullandığın sağlayıcılar için gerekir.
+   Değerler isteğe bağlıdır; `DIKTE_WEB_PASSWORD` boş bırakılırsa uygulama
+   kendisi bir şifre üretir ve veri volume'una kaydeder.
 
 2. Uygulamayı başlat:
 

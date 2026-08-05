@@ -1,28 +1,24 @@
 services:
   dikte-web:
     image: ghcr.io/eco-null/dikte-web:latest
-    build: .
+    container_name: dikte-web
     ports:
-      - "127.0.0.1:8000:8000"
+      - "8000:8000"
     user: "dikte"
     cap_drop: [ALL]
     security_opt:
       - "no-new-privileges:true"
-    read_only: true
     tmpfs:
       - /tmp
-    mem_limit: 1g
-    pids_limit: 256
     environment:
-      DIKTE_WEB_PASSWORD: "${DIKTE_WEB_PASSWORD:?DIKTE_WEB_PASSWORD env'ini bir .env dosyasında ver}"
-      XDG_CONFIG_HOME: /data/config
-      XDG_DATA_HOME: /data/share
+      DIKTE_WEB_PASSWORD: "${DIKTE_WEB_PASSWORD:-}"
       OPENAI_API_KEY: "${OPENAI_API_KEY:-}"
       GROQ_API_KEY: "${GROQ_API_KEY:-}"
       OPENROUTER_API_KEY: "${OPENROUTER_API_KEY:-}"
       OMNIROUTE_BASE_URL: "${OMNIROUTE_BASE_URL:-http://host.docker.internal:20128/v1}"
-      DIKTE_MAX_UPLOAD: "${DIKTE_MAX_UPLOAD:-1073741824}"
       DIKTE_COOKIE_SECURE: "1"
+      XDG_CONFIG_HOME: /data/config
+      XDG_DATA_HOME: /data/share
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
@@ -31,6 +27,3 @@ services:
 
 volumes:
   dikte_data:
-
-x-casaos:
-  icon: ./icon.png

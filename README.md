@@ -82,8 +82,9 @@ own network, e.g. a local LLM server.
    OMNIROUTE_BASE_URL=http://host.docker.internal:20128/v1   # optional
    ```
 
-   `DIKTE_WEB_PASSWORD` is required (docker-compose refuses to start without
-   it). The API keys are only needed for the providers you actually use.
+   The API keys are only needed for the providers you actually use. Values are
+   optional; if `DIKTE_WEB_PASSWORD` is left empty the app generates one and
+   stores it in the data volume.
 
 2. Start the app:
 
