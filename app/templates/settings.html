@@ -34,6 +34,7 @@
 <section class="card">
   <div class="settings-head">
     <h1>{{ t("Settings") }}</h1>
+    <span class="save-badge" id="save-status" role="status" aria-live="polite">{{ t("Autosaving…") }}</span>
   </div>
   <form id="settings-form" class="settings-form">
     {% for service in services %}
@@ -108,11 +109,6 @@
         {% for key in general_keys %}{{ field_input(key) }}{% endfor %}
       </div>
     </fieldset>
-
-    <div class="save-bar">
-      <span class="save-hint">{{ t("Settings are saved automatically as you type.") }}</span>
-      <p id="msg" class="stage save-msg" role="status"></p>
-    </div>
   </form>
 </section>
 
@@ -217,9 +213,15 @@
   loadMicDevices();
 
   const form = document.getElementById("settings-form");
-  const msg = document.getElementById("msg");
+  const status = document.getElementById("save-status");
   let saveTimer = null;
   let dirty = false;
+
+  function setStatus(text, ok, err) {
+    status.textContent = text;
+    status.classList.toggle("save-ok", !!ok);
+    status.classList.toggle("save-err", !!err);
+  }
 
   function collectSettings() {
     const out = {};
@@ -236,8 +238,7 @@
     saveTimer = null;
     if (!dirty) return;
     dirty = false;
-    msg.className = "stage save-msg";
-    msg.textContent = "{{ t("Saving…") }}";
+    setStatus("{{ t("Saving…") }}");
     try {
       const resp = await fetch("/api/settings", {
         method: "POST",
@@ -246,17 +247,15 @@
         body: JSON.stringify({ settings: collectSettings() }),
       });
       if (resp.ok) {
-        msg.className = "stage save-msg save-ok";
-        msg.textContent = "{{ t("Saved successfully.") }}";
+        setStatus("{{ t("Saved successfully.") }}", true);
       } else {
         dirty = true;
-        msg.className = "stage save-msg save-err";
-        msg.textContent = (await resp.json()).detail || resp.status;
+        const detail = (await resp.json().catch(() => null));
+        setStatus(detail && detail.detail ? String(detail.detail) : "{{ t("Save failed: {err}") }}".replace("{err}", String(resp.status)), false, true);
       }
     } catch (err) {
       dirty = true;
-      msg.className = "stage save-msg save-err";
-      msg.textContent = "{{ t("Save failed: {err}") }}".replace("{err}", String(err));
+      setStatus("{{ t("Save failed: {err}") }}".replace("{err}", String(err)), false, true);
     }
   }
 

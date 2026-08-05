@@ -194,11 +194,11 @@ class PagesTest(DikteTest):
         self.assertIn('name="file_timestamps"', body)
         self.assertIn("data-models", body)
 
-    def test_settings_page_uses_compact_grid_and_save_bar(self):
+    def test_settings_page_uses_compact_grid_and_save_badge(self):
         body = self.client.get("/settings").text
         self.assertIn("settings-grid", body)
-        self.assertIn("save-bar", body)
-        self.assertIn('id="msg"', body)
+        self.assertIn("save-badge", body)
+        self.assertIn('id="save-status"', body)
 
     def test_settings_page_offers_omniroute_provider(self):
         body = self.client.get("/settings").text
@@ -272,7 +272,7 @@ class PagesTest(DikteTest):
         body = self.client.get("/settings").text
         form = re.search(r'<form id="settings-form".*?</form>', body, re.S).group(0)
         self.assertNotIn('type="submit"', form)
-        self.assertIn("Settings are saved automatically", body)
+        self.assertIn('id="save-status"', body)
         self.assertIn("function saveNow", body)
         self.assertIn("scheduleSave", body)
         self.assertIn("keepalive: true", body)

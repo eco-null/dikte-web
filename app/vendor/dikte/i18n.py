@@ -140,6 +140,7 @@ TR = {
     "Save failed: {err}": "Kaydedilemedi: {err}",
     "Saved successfully.": "Başarıyla kaydedildi.",
     "Settings are saved automatically as you type.": "Ayarlar yazarken otomatik kaydedilir.",
+    "Autosaving…": "Otomatik kayıt…",
     "Interface language": "Arayüz dili",
     "Automatic (system)": "Otomatik (sistem)",
     "Turkish": "Türkçe",

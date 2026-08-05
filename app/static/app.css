@@ -164,6 +164,16 @@ main { max-width: 900px; margin: 0 auto; padding: var(--space-5) var(--space-4) 
   margin-bottom: var(--space-4);
 }
 .settings-head h1 { margin: 0; }
+.save-badge {
+  color: var(--color-muted);
+  font-size: 0.85em;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  background: var(--color-bg-elev);
+  border: 1px solid var(--color-border);
+}
+.save-badge.save-ok { color: var(--color-success); border-color: var(--color-success); }
+.save-badge.save-err { color: var(--color-danger); border-color: var(--color-danger); }
 
 .save-bar {
   display: flex;
