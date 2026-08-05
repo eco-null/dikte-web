@@ -5,7 +5,7 @@ services:
     container_name: dikte-web
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "8245:8000"
     environment:
       DIKTE_WEB_PASSWORD: "CHANGE_ME"
       OPENAI_API_KEY: ""
