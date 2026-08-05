@@ -101,6 +101,11 @@ def create_app():
             if request.url.path == "/login":
                 return await call_next(request)
             if not _same_origin(request):
+                print(f"dikte-web: CSRF rejected {request.method} {request.url.path} "
+                      f"origin={request.headers.get('origin')!r} "
+                      f"host={request.headers.get('host')!r} "
+                      f"xfh={request.headers.get('x-forwarded-host')!r} "
+                      f"fwd={request.headers.get('forwarded')!r}", flush=True)
                 if request.url.path.startswith("/api/"):
                     return JSONResponse(
                         {"detail": "Forbidden: cross-site request"},

@@ -452,5 +452,6 @@ def get_settings(request: Request):
 
 @router.post("/api/settings")
 def post_settings(request: Request, payload: dict = Body(...)):
+    print(f"dikte-web: POST /api/settings keys={sorted((payload.get('settings') or {}).keys())}", flush=True)
     web_settings.apply(_conf(request), payload.get("settings") or {})
     return {"saved": True}
